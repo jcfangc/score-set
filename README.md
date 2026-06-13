@@ -60,11 +60,23 @@ let ms = score_set! { 2.0 => gc, 3.0 => len, 5.0 => specificity }?;
 
 **Scoring.** `score().by(closure)` gives access to every member. Each member provides `.metric()` (the operator) and `.contribute(value01)` (score × normalized weight). The closure composes contributions arbitrarily — different operators can consume different input shapes, capture external context, or conditionally participate.
 
+Linear combination:
+
 ```rust
 let score = ms.score().by(|(gc, len, spec)| {
     gc.contribute(gc.metric().eval(dna))
         + len.contribute(len.metric().eval(dna.len()))
         + spec.contribute(spec.metric().eval((&dna, &ctx)))
+});
+```
+
+Geometric (product) — all-or-nothing scoring sensitive to any weak metric:
+
+```rust
+let score = ms.score().by(|(gc, len, spec)| {
+    gc.contribute(gc.metric().eval(dna))
+        * len.contribute(len.metric().eval(dna.len()))
+        * spec.contribute(spec.metric().eval((&dna, &ctx)))
 });
 ```
 
