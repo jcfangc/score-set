@@ -27,7 +27,7 @@ fn weighted_mean_normalizes() {
         .score()
         .by(|(a, b)| a.contribute(a.metric().eval(1.0)) + b.contribute(b.metric().eval(1.0)));
 
-    assert!((score.into_inner() - 1.0).abs() < 1e-10);
+    assert!((score - 1.0).abs() < 1e-10);
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn weighted_mean_equal_weights() {
         .score()
         .by(|(m1, m2)| m1.contribute(m1.metric().eval(0.5)) + m2.contribute(m2.metric().eval(0.5)));
 
-    assert!((score.into_inner() - 0.5).abs() < 1e-10);
+    assert!((score - 0.5).abs() < 1e-10);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn weighted_mean_single_member() {
 
     let score = ms.score().by(|(m,)| m.contribute(m.metric().eval(0.7)));
 
-    assert!((score.into_inner() - 0.7).abs() < 1e-10);
+    assert!((score - 0.7).abs() < 1e-10);
 }
 
 #[test]
@@ -123,5 +123,5 @@ fn weighted_mean_with_f32() {
 
     let score = ms.score().by(|(m,)| m.contribute(m.metric().eval(1.0_f32)));
 
-    assert!((score.into_inner() - 1.0_f32).abs() < 1e-7);
+    assert!((score - 1.0_f32).abs() < 1e-7);
 }

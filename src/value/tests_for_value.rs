@@ -49,7 +49,7 @@ fn normalized_container_prove() {
 }
 
 #[test]
-fn contribution_arithmetic() {
+fn weighted_value_product() {
     let container = vec![1.0_f64]
         .witness()
         .by(|w| NormalizedContainer::prove(w.iter().copied()))
@@ -59,25 +59,8 @@ fn contribution_arithmetic() {
         .witness()
         .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
         .unwrap();
-    let c = Contribution::new(v, w);
-    assert!((c.into_inner() - 0.6).abs() < 1e-10);
-
-    let v2 = 0.4_f64.witness().by(|v| Value01::prove(*v)).unwrap();
-    let w2 = 1.0_f64
-        .witness()
-        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
-        .unwrap();
-    let c2 = Contribution::new(v2, w2);
-
-    let sum = c + c2;
-    assert!((sum.into_inner() - 1.0).abs() < 1e-10);
-}
-
-#[test]
-fn score01_construction() {
-    let s = Score01::try_new(0.5_f64).unwrap();
-    assert!((s.into_inner() - 0.5).abs() < 1e-10);
-    assert!(Score01::try_new(-0.1_f64).is_err());
+    let c = v.into_inner() * w.into_inner();
+    assert!((c - 0.6).abs() < 1e-10);
 }
 
 #[test]

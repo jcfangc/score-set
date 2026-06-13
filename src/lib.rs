@@ -54,9 +54,7 @@ pub use metric::{Metric, metric};
 pub use op::{Op, op};
 pub use set::RawMetricSet;
 pub use set::{MetricSet, ScoreStage};
-pub use value::{
-    Contribution, ContributionSum, NormalizedContainer, NormalizedWeight, Score01, Value01, Weight,
-};
+pub use value::{NormalizedContainer, NormalizedWeight, Value01, Weight};
 pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]

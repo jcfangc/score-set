@@ -1,5 +1,5 @@
 use crate::float::ScoreFloat;
-use crate::value::{Contribution, NormalizedContainer, NormalizedWeight, Value01};
+use crate::value::{NormalizedContainer, NormalizedWeight, Value01};
 use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
@@ -66,8 +66,8 @@ impl<T: ScoreFloat, M> Member<T, M> {
     ///
     /// `contribute(score) = score × normalized_weight`
     #[inline]
-    pub fn contribute(&self, value: Witnessed<T, Value01>) -> Contribution<T> {
-        Contribution::new(value, self.weight)
+    pub fn contribute(&self, value: Witnessed<T, Value01>) -> T {
+        value.into_inner() * self.weight.into_inner()
     }
 
     /// Return a reference to the metric.

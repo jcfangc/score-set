@@ -35,7 +35,7 @@ fn readme_example() {
         gc.contribute(gc.metric().eval(dna)) + len.contribute(len.metric().eval(dna.len()))
     });
 
-    let inner = score.into_inner();
+    let inner = score;
     assert!(inner >= 0.0 && inner <= 1.0);
     assert!((inner - 0.248).abs() < 0.001);
 }

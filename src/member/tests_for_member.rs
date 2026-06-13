@@ -29,7 +29,7 @@ fn member_contribute() {
     };
 
     let c = m.contribute(v);
-    assert!((c.into_inner() - 0.6).abs() < 1e-10);
+    assert!((c - 0.6).abs() < 1e-10);
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn member_contribute_zero() {
     };
 
     let c = m.contribute(v);
-    assert!((c.into_inner() - 0.0).abs() < 1e-10);
+    assert!((c - 0.0).abs() < 1e-10);
 }
 
 #[test]
@@ -78,5 +78,5 @@ fn member_contribute_one() {
     };
 
     let c = m.contribute(v);
-    assert!((c.into_inner() - 0.5).abs() < 1e-10);
+    assert!((c - 0.5).abs() < 1e-10);
 }
