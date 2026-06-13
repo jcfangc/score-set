@@ -45,3 +45,52 @@ fn metric_usize_input() {
     let result2 = m.eval(&200);
     assert!((*result2 - 1.0).abs() < 1e-10);
 }
+
+#[test]
+fn map01_identity() {
+    let m = metric("id")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .identity();
+
+    assert!((*m.eval(&0.5) - 0.5).abs() < 1e-10);
+    assert!((*m.eval(&1.5) - 1.0).abs() < 1e-10);
+    assert!((*m.eval(&-0.5) - 0.0).abs() < 1e-10);
+}
+
+#[test]
+fn map01_linear() {
+    let m = metric("lin")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .linear(200.0);
+
+    assert!((*m.eval(&100.0) - 0.5).abs() < 1e-10);
+    assert!((*m.eval(&300.0) - 1.0).abs() < 1e-10);
+}
+
+#[test]
+fn map01_sigmoid() {
+    let m = metric("sig")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .sigmoid(0.0, 1.0); // standard logistic
+
+    let result = m.eval(&0.0);
+    assert!((*result - 0.5).abs() < 1e-6);
+}
+
+#[test]
+fn map01_cauchy() {
+    let m = metric("cauchy")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .cauchy(1.0);
+
+    let result = m.eval(&1.0);
+    assert!((*result - 0.5).abs() < 1e-6);
+}

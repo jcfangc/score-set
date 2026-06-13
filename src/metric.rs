@@ -79,6 +79,40 @@ impl<I, Raw, M> Map01Stage<I, Raw, M> {
     }
 }
 
+// Shape methods — available when Raw is the same float type as the Value01 output.
+
+impl<I, T: Float, M> Map01Stage<I, T, M> {
+    /// Identity: clamp raw value to `[0, 1]`.
+    pub fn identity(self) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        self.by(|raw: &T, _: &I| Value01::witness(raw.min(T::one()).max(T::zero())).unwrap())
+    }
+
+    /// Linear: `raw / max`, clamped to `[0, 1]`.
+    pub fn linear(self, max: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        self.by(move |raw: &T, _: &I| {
+            Value01::witness((*raw / max).min(T::one()).max(T::zero())).unwrap()
+        })
+    }
+
+    /// Sigmoid: `1 / (1 + exp(-k * (raw - x0)))`.
+    pub fn sigmoid(self, x0: T, k: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
+    {
+        self.by(move |raw: &T, _: &I| {
+            let v = T::one() / (T::one() + (-k * (*raw - x0)).exp());
+            Value01::witness(v).unwrap()
+        })
+    }
+
+    /// Cauchy: `1 / (1 + (raw / half)^2)`.
+    pub fn cauchy(self, half: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
+    {
+        self.by(move |raw: &T, _: &I| {
+            let v = T::one() / (T::one() + (*raw / half) * (*raw / half));
+            Value01::witness(v).unwrap()
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Metric — the built scoring operator
 // ---------------------------------------------------------------------------

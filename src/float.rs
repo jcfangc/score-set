@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use core::ops::{Add, Div, Mul, Sub};
+use core::ops::{Add, Div, Mul, Neg, Sub};
 
 /// Sealed trait for floating-point types supported by this crate.
 ///
@@ -16,6 +16,7 @@ pub(crate) mod sealed {
         + Sub<Output = Self>
         + Mul<Output = Self>
         + Div<Output = Self>
+        + Neg<Output = Self>
         + 'static
     {
         fn zero() -> Self;
@@ -25,6 +26,7 @@ pub(crate) mod sealed {
         fn abs(self) -> Self;
         fn min(self, other: Self) -> Self;
         fn max(self, other: Self) -> Self;
+        fn exp(self) -> Self;
     }
 
     impl SealedFloat for f32 {
@@ -56,6 +58,10 @@ pub(crate) mod sealed {
         fn max(self, other: Self) -> Self {
             f32::max(self, other)
         }
+        #[inline]
+        fn exp(self) -> Self {
+            f32::exp(self)
+        }
     }
 
     impl SealedFloat for f64 {
@@ -86,6 +92,10 @@ pub(crate) mod sealed {
         #[inline]
         fn max(self, other: Self) -> Self {
             f64::max(self, other)
+        }
+        #[inline]
+        fn exp(self) -> Self {
+            f64::exp(self)
         }
     }
 }
