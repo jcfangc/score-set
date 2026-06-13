@@ -1,6 +1,14 @@
 repos:
   - repo: local
     hooks:
+      - id: check-unstaged
+        name: no unstaged changes in tracked files
+        entry: bash -c 'git diff --exit-code'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
       - id: cargo-test
         name: cargo test --locked
         entry: cargo test --locked
@@ -16,7 +24,7 @@ repos:
         types: [rust]
 
       - id: check-clean-tree
-        name: no uncommitted changes
+        name: no uncommitted changes (push guard)
         entry: bash -c 'git diff --exit-code && git diff --cached --exit-code'
         language: system
         pass_filenames: false
