@@ -28,6 +28,7 @@ fn generate(max: usize) {
     let out_dir = env::current_dir().unwrap();
     let out_path = out_dir.join("src").join("gen_tuple.rs");
 
+    assert!(max >= 1, "max must be >= 1");
     let default_level = default_level_for(max);
     let mut content = String::new();
 
@@ -37,22 +38,49 @@ fn generate(max: usize) {
          // ---------------------------------------------------------------------------\n\
          // Per-arity implementations of the `Members` trait on flat member tuples.\n\
          //\n\
+         // Arity 1 is hand-written (macro_rules cannot reliably produce 1-tuples).\n\
+         // Arity 2+ uses the `impl_members_for_tuple!` helper macro.\n\
+         //\n\
          // Generated arities: 1–{max} (default feature `{default_level}`).\n\
-         // Run `cargo run --bin xtask -- gen --max <N>` to regenerate for higher arities.\n\
+         // Run `cargo run -p xtask -- gen --max <N>` to regenerate for higher arities.\n\
          // ---------------------------------------------------------------------------\n\
          \n\
          "
     ));
 
-    // Helper macro
+    // ---- arity 1 (hand-written) ----
     content.push_str(
-        r#"/// Internal helper: implement `Members<T>` for a tuple of the given arity.
+        "// ---- arity 1 (hand-written: macro_rules cannot reliably produce 1-tuples) ----
+#[cfg(feature = \"num-1\")]
+impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
+    type Raw = (crate::RawMember<T, M0>,);
+
+    fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
+        vec![raw.0.weight]
+    }
+
+    unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self {
+        (
+            crate::Member {
+                weight: unsafe { crate::NormalizedWeight::witness_unchecked(normalized[0]) },
+                metric: raw.0.metric,
+            },
+        )
+    }
+}
+
+",
+    );
+
+    // Helper macro for arity 2+
+    content.push_str(
+        r##"/// Internal helper: implement `Members<T>` for a tuple of arity 2+.
 macro_rules! impl_members_for_tuple {
     ($($idx:tt $name:ident),+) => {
         impl<T: $crate::ScoreFloat, $($name),+> $crate::Members<T>
-            for ($($crate::Member<T, $name>),+,)
+            for ($($crate::Member<T, $name>,)+)
         {
-            type Raw = ($($crate::RawMember<T, $name>),+,);
+            type Raw = ($($crate::RawMember<T, $name>,)+);
 
             fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
                 vec![$(raw.$idx.weight),+]
@@ -66,18 +94,18 @@ macro_rules! impl_members_for_tuple {
                     $($crate::Member {
                         weight: unsafe { $crate::NormalizedWeight::witness_unchecked(normalized[$idx]) },
                         metric: raw.$idx.metric,
-                    }),+,
+                    },)+
                 )
             }
         }
     };
 }
 
-"#,
+"##,
     );
 
-    // Per-arity impls
-    for n in 1..=max {
+    // Per-arity impls for arities 2+
+    for n in 2..=max {
         let indices: Vec<String> = (0..n).map(|i| i.to_string()).collect();
         let names: Vec<String> = (0..n).map(|i| format!("M{i}")).collect();
         let pairs: Vec<String> = indices
@@ -100,7 +128,7 @@ macro_rules! impl_members_for_tuple {
         std::process::exit(1);
     });
 
-    // Format the generated file so it never drifts from committed style.
+    // Format
     let fmt_status = Command::new("cargo")
         .args(["fmt", "--", out_path.to_str().unwrap()])
         .status()
@@ -118,7 +146,6 @@ macro_rules! impl_members_for_tuple {
     );
 }
 
-/// Map max arity to the default coarse-grained feature level.
 fn default_level_for(max: usize) -> &'static str {
     if max <= 8 {
         "level-8"
