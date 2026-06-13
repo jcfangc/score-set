@@ -14,3 +14,11 @@ repos:
         language: system
         pass_filenames: false
         types: [rust]
+
+      - id: check-clean-tree
+        name: no uncommitted changes
+        entry: bash -c 'git diff --exit-code && git diff --cached --exit-code'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [push]
