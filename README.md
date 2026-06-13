@@ -10,18 +10,18 @@ use score_set::*;
 // 1. Build metrics
 let gc = metric("gc-content")
     .measure()
-    .by(|dna: &str| {
+    .by(|dna: &&str| {
         let gc = dna.chars().filter(|c| *c == 'G' || *c == 'C').count();
         if dna.is_empty() { 0.0 } else { gc as f64 / dna.len() as f64 }
     })
     .map01()
-    .by(|raw: &f64, _: &str| Value01::witness(*raw).unwrap());
+    .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 
 let length = metric("length")
     .measure()
-    .by(|len: usize| len)
+    .by(|len: &usize| *len)
     .map01()
-    .by(|raw: &usize, _: usize| {
+    .by(|raw: &usize, _: &usize| {
         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
     });
 
@@ -34,8 +34,8 @@ let ms = score_set! {
 // 3. Score with runtime data
 let dna = "ACGTACGT";
 let score = ms.score().by(|(gc, len)| {
-    gc.contribute(gc.metric().eval(dna))
-        + len.contribute(len.metric().eval(dna.len()))
+    gc.contribute(gc.metric().eval(&dna))
+        + len.contribute(len.metric().eval(&dna.len()))
 });
 // score ≈ 0.248
 
@@ -48,8 +48,8 @@ let score = ms.score().by(|(gc, len)| {
 
 ```rust
 metric("name")
-    .measure().by(|input| raw_value)
-    .map01().by(|raw, input| Value01::witness(score).unwrap())
+    .measure().by(|input: &T| raw_value)
+    .map01().by(|raw: &Raw, input: &T| Value01::witness(raw).unwrap())
 ```
 
 **Score Sets.** `score_set!` declares a weighted set of metrics. Weights are validated strictly positive and normalized to sum to 1. Validation fails at build time if any weight is ≤ 0.
@@ -64,9 +64,9 @@ Linear combination:
 
 ```rust
 let score = ms.score().by(|(gc, len, spec)| {
-    gc.contribute(gc.metric().eval(dna))
-        + len.contribute(len.metric().eval(dna.len()))
-        + spec.contribute(spec.metric().eval((&dna, &ctx)))
+    gc.contribute(gc.metric().eval(&dna))
+        + len.contribute(len.metric().eval(&dna.len()))
+        + spec.contribute(spec.metric().eval(&(&dna, &ctx)))
 });
 ```
 
@@ -74,9 +74,9 @@ Geometric (product) — all-or-nothing scoring sensitive to any weak metric:
 
 ```rust
 let score = ms.score().by(|(gc, len, spec)| {
-    gc.contribute(gc.metric().eval(dna))
-        * len.contribute(len.metric().eval(dna.len()))
-        * spec.contribute(spec.metric().eval((&dna, &ctx)))
+    gc.contribute(gc.metric().eval(&dna))
+        * len.contribute(len.metric().eval(&dna.len()))
+        * spec.contribute(spec.metric().eval(&(&dna, &ctx)))
 });
 ```
 
