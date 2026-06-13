@@ -6,10 +6,8 @@ use witnessed::{WitnessExt, Witnessed};
 // Members trait — maps raw tuple to normalized tuple
 // ---------------------------------------------------------------------------
 
-/// Trait that maps a tuple of [`RawMember`]s to a tuple of [`Member`]s
-/// through weight normalization.
-///
-/// Implemented per tuple arity by the code-generated `gen_tuple.rs` module.
+/// Trait that maps raw member tuples to normalized member tuples.
+#[doc(hidden)]
 pub trait Members<T: ScoreFloat>: Sized {
     /// The raw (pre-normalization) member tuple.
     type Raw;
@@ -33,6 +31,7 @@ pub trait Members<T: ScoreFloat>: Sized {
 // ---------------------------------------------------------------------------
 
 /// A raw member: a strictly-positive weight paired with a metric.
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
 pub struct RawMember<T: ScoreFloat, M> {
     pub(crate) weight: Witnessed<T, GtZero>,
@@ -52,6 +51,7 @@ impl<T: ScoreFloat, M> RawMember<T, M> {
 }
 
 /// Construct a `RawMember`, validating that `weight` is strictly positive.
+#[doc(hidden)]
 #[inline]
 pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> Result<RawMember<T, M>, &'static str> {
     let w = GtZero::witness(weight)?;
