@@ -1,5 +1,4 @@
 use crate::float::Float;
-use crate::member::Members;
 use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
 

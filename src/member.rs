@@ -1,6 +1,6 @@
 use crate::float::Float;
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
-use witnessed::{WitnessExt, Witnessed};
+use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
 // Members trait — maps raw tuple to normalized tuple
