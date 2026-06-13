@@ -1,14 +1,66 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! # score-set
+//!
+//! A Rust library for building **static weighted scoring operator sets**.
+//!
+//! It does not prescribe a unified input or context type. Instead it declares,
+//! stores, normalizes, and combines a set of weighted operators — scoring is
+//! done via a user-provided closure that can inject arbitrary runtime data.
+//!
+//! # Quick example
+//!
+//! ```ignore
+//! use score_set::*;
+//!
+//! let gc = metric("gc")
+//!     .measure().by(|dna: &str| gc_ratio(dna))
+//!     .map01().by(|raw: &f64, _: &str| Value01::witness(*raw).unwrap())
+//!     .build();
+//!
+//! let len = metric("len")
+//!     .measure().by(|len: usize| len)
+//!     .map01().by(|raw: &usize, _: usize| {
+//!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
+//!     })
+//!     .build();
+//!
+//! let ms = score_set! {
+//!     2.0 => gc,
+//!     3.0 => len,
+//! }.aggregate(strategy::weighted_mean)?;
+//!
+//! let dna = "ACGTACGT";
+//! let score = ms.score().by(|(gc, len)| {
+//!     gc.contribute(gc.metric().eval(dna))
+//!         + len.contribute(len.metric().eval(dna.len()))
+//! });
+//! # Ok::<(), &'static str>(())
+//! ```
+
+mod float;
+mod gen_tuple;
+mod macros;
+mod member;
+mod metric;
+mod op;
+mod set;
+pub mod strategy;
+mod value;
+
+// Public API
+pub use float::ScoreFloat;
+// score_set! is exported at crate root via #[macro_export]
+pub use member::{Member, Members, RawMember, raw_member};
+pub use metric::{Metric, metric};
+pub use op::{Op, op};
+pub use set::{MetricSet, RawMetricSet, ScoreStage};
+pub use value::{Contribution, ContributionSum, NormalizedWeight, Score01, Value01, Weight};
+pub use witnessed::Witnessed;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+mod lab;
+#[cfg(test)]
+mod tests_for_metric;
+#[cfg(test)]
+mod tests_for_set;
+#[cfg(test)]
+mod tests_for_value;
