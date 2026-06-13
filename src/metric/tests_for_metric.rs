@@ -77,19 +77,7 @@ fn map01_sigmoid() {
         .measure()
         .by(|v: &f64| *v)
         .map01()
-        .sigmoid(0.0, 1.0);
-
-    let result = m.eval(&0.0);
-    assert!((*result - 0.5).abs() < 1e-6);
-}
-
-#[test]
-fn map01_sigmoid_range() {
-    let m = metric("sig-range")
-        .measure()
-        .by(|v: &f64| *v)
-        .map01()
-        .sigmoid_range(-5.0, 5.0);
+        .sigmoid(-5.0, 5.0);
 
     let mid = m.eval(&0.0);
     assert!((*mid - 0.5).abs() < 1e-3);
