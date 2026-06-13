@@ -3,39 +3,39 @@ use crate::member::Members;
 use core::marker::PhantomData;
 
 // ---------------------------------------------------------------------------
-// RawMetricSet — pre-aggregation
+// RawScoreSet — pre-aggregation
 // ---------------------------------------------------------------------------
 
 /// Holds a tuple of [`RawMember`](crate::RawMember)s, ready for aggregation.
 ///
 /// Produced by the [`score_set!`](crate::score_set!) macro. Call
-/// [`.aggregate(strategy)`](RawMetricSet::aggregate) to normalize weights and
-/// build a [`MetricSet`].
-pub struct RawMetricSet<RawMembers> {
+/// [`.aggregate(strategy)`](RawScoreSet::aggregate) to normalize weights and
+/// build a [`ScoreSet`].
+pub struct RawScoreSet<RawMembers> {
     pub(crate) raw: RawMembers,
 }
 
-impl<RawMembers> RawMetricSet<RawMembers> {
-    /// Create a new `RawMetricSet` from a tuple of `RawMember`s.
+impl<RawMembers> RawScoreSet<RawMembers> {
+    /// Create a new `RawScoreSet` from a tuple of `RawMember`s.
     #[inline]
     pub fn new(raw: RawMembers) -> Self {
         Self { raw }
     }
 
     /// Apply an aggregation strategy to normalize weights and produce a
-    /// [`MetricSet`].
+    /// [`ScoreSet`].
     ///
     /// The strategy receives the raw member tuple and returns a normalized one.
     /// Use [`strategy::weighted_mean`](crate::strategy::weighted_mean) or
     /// pass a custom closure.
-    pub fn aggregate<T, M, F>(self, strategy: F) -> Result<MetricSet<T, M>, &'static str>
+    pub fn aggregate<T, M, F>(self, strategy: F) -> Result<ScoreSet<T, M>, &'static str>
     where
         T: ScoreFloat,
         M: Members<T, Raw = RawMembers>,
         F: FnOnce(RawMembers) -> Result<M, &'static str>,
     {
         let members = strategy(self.raw)?;
-        Ok(MetricSet {
+        Ok(ScoreSet {
             members,
             _phantom: PhantomData,
         })
@@ -43,19 +43,19 @@ impl<RawMembers> RawMetricSet<RawMembers> {
 }
 
 // ---------------------------------------------------------------------------
-// MetricSet — post-aggregation, ready for scoring
+// ScoreSet — post-aggregation, ready for scoring
 // ---------------------------------------------------------------------------
 
 /// A static weighted set of scoring operators.
 ///
 /// Holds a flat tuple of [`Member`](crate::Member)s with normalized weights.
-/// Call [`.score()`](MetricSet::score) to enter the scoring stage.
-pub struct MetricSet<T: ScoreFloat, Members> {
+/// Call [`.score()`](ScoreSet::score) to enter the scoring stage.
+pub struct ScoreSet<T: ScoreFloat, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ScoreFloat, Members> MetricSet<T, Members> {
+impl<T: ScoreFloat, Members> ScoreSet<T, Members> {
     /// Enter the scoring stage, returning a [`ScoreStage`] bound to this set's
     /// members.
     #[inline]
@@ -71,7 +71,7 @@ impl<T: ScoreFloat, Members> MetricSet<T, Members> {
 // ScoreStage — user-provided scoring closure
 // ---------------------------------------------------------------------------
 
-/// The scoring stage, created by [`MetricSet::score`].
+/// The scoring stage, created by [`ScoreSet::score`].
 ///
 /// Call [`.by(closure)`](ScoreStage::by) to evaluate the set with an
 /// arbitrary composition of its members.

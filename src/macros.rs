@@ -1,9 +1,9 @@
 /// Declare a set of `weight => metric` pairs.
 ///
 /// The macro only wraps each entry into a [`RawMember`](crate::RawMember) and
-/// collects them into a [`RawMetricSet`](crate::RawMetricSet). Call
+/// collects them into a [`RawScoreSet`](crate::RawScoreSet). Call
 /// `.aggregate(strategy)` on the result to normalize weights and build a
-/// [`MetricSet`](crate::MetricSet).
+/// [`ScoreSet`](crate::ScoreSet).
 ///
 /// # Example
 ///
@@ -17,7 +17,7 @@
 #[macro_export]
 macro_rules! score_set {
     ($($weight:expr => $metric:expr),+ $(,)?) => {{
-        $crate::RawMetricSet::new((
+        $crate::RawScoreSet::new((
             $($crate::raw_member($weight, $metric),)+
         ))
     }};

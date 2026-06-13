@@ -52,8 +52,7 @@ pub use float::ScoreFloat;
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use op::{Op, op};
-pub use set::RawMetricSet;
-pub use set::{MetricSet, ScoreStage};
+pub use set::{RawScoreSet, ScoreSet, ScoreStage};
 pub use value::{NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
