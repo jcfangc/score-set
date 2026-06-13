@@ -55,12 +55,18 @@ fn contribution_arithmetic() {
         .by(NormalizedContainer::prove())
         .unwrap();
     let v = 0.6_f64.witness().by(Value01::prove()).unwrap();
-    let w = NormalizedWeight::from_normalized_container(1.0_f64, &container).unwrap();
+    let w = 1.0_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let c = Contribution::new(v, w);
     assert!((c.into_inner() - 0.6).abs() < 1e-10);
 
     let v2 = 0.4_f64.witness().by(Value01::prove()).unwrap();
-    let w2 = NormalizedWeight::from_normalized_container(1.0_f64, &container).unwrap();
+    let w2 = 1.0_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let c2 = Contribution::new(v2, w2);
 
     let sum = c + c2;
@@ -82,6 +88,9 @@ fn f32_support() {
         .witness()
         .by(NormalizedContainer::prove())
         .unwrap();
-    let nw = NormalizedWeight::from_normalized_container(0.25_f32, &container).unwrap();
+    let nw = 0.25_f32
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     assert!((*nw - 0.25_f32).abs() < 1e-7);
 }

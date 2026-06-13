@@ -1,6 +1,6 @@
 use crate::float::ScoreFloat;
 use core::ops::Add;
-use witnessed::{WitnessExt, Witnessed};
+use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
 // Value01 — value in [0, 1], finite
@@ -89,21 +89,24 @@ impl Weight {
 pub struct NormalizedWeight;
 
 impl NormalizedWeight {
-    /// Verify `value` is a member of a validated normalized set and
-    /// construct a credential.
+    /// Binary-search `container` for `value`. Returns the credential
+    /// tag if the value is a member of the validated normalized set.
     ///
-    /// Binary-searches the sorted `container` to confirm membership.
+    /// Use with `witnessed`'s `by()`:
+    /// ```ignore
+    /// let w = value.witness().by(
+    ///     |v| NormalizedWeight::from_normalized_container(*v, &container)
+    /// )?;
+    /// ```
     pub fn from_normalized_container<T: ScoreFloat>(
         value: T,
         container: &Witnessed<Vec<T>, NormalizedContainer>,
-    ) -> Result<Witnessed<T, Self>, &'static str> {
+    ) -> Result<Self, &'static str> {
         if container
             .binary_search_by(|a| a.partial_cmp(&value).unwrap_or(core::cmp::Ordering::Equal))
             .is_ok()
         {
-            // SAFETY: binary search confirmed membership in a container
-            // that passed NormalizedContainer::validate_set.
-            Ok(unsafe { value.witness().by_unchecked::<NormalizedWeight>() })
+            Ok(NormalizedWeight)
         } else {
             Err("NormalizedWeight: value not found in validated set")
         }

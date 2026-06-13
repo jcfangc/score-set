@@ -16,7 +16,10 @@ fn raw_member_construction() {
 fn member_contribute() {
     let v = 0.6_f64.witness().by(Value01::prove()).unwrap();
     let container = normalized_set(vec![1.0]);
-    let w = NormalizedWeight::from_normalized_container(1.0, &container).unwrap();
+    let w = 1.0_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let m = Member {
         weight: w,
         metric: "test",
@@ -29,7 +32,10 @@ fn member_contribute() {
 #[test]
 fn member_metric_access() {
     let container = normalized_set(vec![1.0]);
-    let w = NormalizedWeight::from_normalized_container(1.0, &container).unwrap();
+    let w = 1.0_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let m = Member {
         weight: w,
         metric: 42_u32,
@@ -42,7 +48,10 @@ fn member_metric_access() {
 fn member_contribute_zero() {
     let v = 1.0_f64.witness().by(Value01::prove()).unwrap();
     let container = normalized_set(vec![0.0, 0.5, 0.5]);
-    let w = NormalizedWeight::from_normalized_container(0.0, &container).unwrap();
+    let w = 0.0_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let m = Member {
         weight: w,
         metric: (),
@@ -56,7 +65,10 @@ fn member_contribute_zero() {
 fn member_contribute_one() {
     let v = 1.0_f64.witness().by(Value01::prove()).unwrap();
     let container = normalized_set(vec![0.5, 0.5]);
-    let w = NormalizedWeight::from_normalized_container(0.5, &container).unwrap();
+    let w = 0.5_f64
+        .witness()
+        .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
+        .unwrap();
     let m = Member {
         weight: w,
         metric: (),

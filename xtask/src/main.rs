@@ -45,6 +45,8 @@ fn generate(max: usize) {
          // Run `cargo run -p xtask -- gen --max <N>` to regenerate for higher arities.\n\
          // ---------------------------------------------------------------------------\n\
          \n\
+         use witnessed::WitnessExt;\n\
+         \n\
          "
     ));
 
@@ -65,10 +67,12 @@ impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
     ) -> Self {
         (
             crate::Member {
-                weight: crate::NormalizedWeight::from_normalized_container(
-                    container[0], container,
-                )
-                .unwrap(),
+                weight: container[0]
+                    .witness()
+                    .by(|v| {
+                        crate::NormalizedWeight::from_normalized_container(*v, container)
+                    })
+                    .unwrap(),
                 metric: raw.0.metric,
             },
         )
@@ -98,10 +102,14 @@ macro_rules! impl_members_for_tuple {
             ) -> Self {
                 (
                     $($crate::Member {
-                        weight: $crate::NormalizedWeight::from_normalized_container(
-                            container[$idx], container,
-                        )
-                        .unwrap(),
+                        weight: container[$idx]
+                            .witness()
+                            .by(|v| {
+                                $crate::NormalizedWeight::from_normalized_container(
+                                    *v, container,
+                                )
+                            })
+                            .unwrap(),
                         metric: raw.$idx.metric,
                     },)+
                 )
