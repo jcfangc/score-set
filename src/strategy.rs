@@ -39,7 +39,9 @@ where
 
     let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
 
-    let container = normalized.witness().by(NormalizedContainer::prove())?;
+    let container = normalized
+        .witness()
+        .by(|w| NormalizedContainer::prove(w.iter().copied()))?;
 
     Ok(M::from_raw_with_weights(raw, &container))
 }

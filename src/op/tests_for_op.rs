@@ -4,7 +4,13 @@ use crate::*;
 fn op_builder_eval() {
     let op = op("thresh")
         .score()
-        .by(|v: f64| v.min(1.0).max(0.0).witness().by(Value01::prove()).unwrap())
+        .by(|v: f64| {
+            v.min(1.0)
+                .max(0.0)
+                .witness()
+                .by(|v| Value01::prove(*v))
+                .unwrap()
+        })
         .build();
 
     assert_eq!(op.name(), "thresh");
@@ -17,7 +23,13 @@ fn op_builder_eval() {
 fn op_with_f32() {
     let op = op("f32")
         .score()
-        .by(|v: f32| v.min(1.0).max(0.0).witness().by(Value01::prove()).unwrap())
+        .by(|v: f32| {
+            v.min(1.0)
+                .max(0.0)
+                .witness()
+                .by(|v| Value01::prove(*v))
+                .unwrap()
+        })
         .build();
 
     let result = op.eval(0.5_f32);
@@ -30,7 +42,7 @@ fn op_with_ref_input() {
         .score()
         .by(|s: &str| {
             let v = if s == "yes" { 1.0_f64 } else { 0.0_f64 };
-            v.witness().by(Value01::prove()).unwrap()
+            v.witness().by(|v| Value01::prove(*v)).unwrap()
         })
         .build();
 

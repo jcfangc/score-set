@@ -8,32 +8,22 @@ use witnessed::Witnessed;
 
 /// Witness credential for a value validated to be finite and in `[0, 1]`.
 ///
-/// This type is a ZST credential only. Construct a `Witnessed<T, Value01>`
-/// by passing [`Value01::prove`] to `witnessed`'s validation framework:
-///
+/// Use with `witnessed`:
 /// ```ignore
-/// let v: Witnessed<f64, Value01> = 0.5.witness().by(Value01::prove())?;
+/// let v = 0.5_f64.witness().by(|v| Value01::prove(*v))?;
 /// ```
 pub struct Value01;
 
 impl Value01 {
-    /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
-    ///
-    /// Validates that the value is finite and in `[0, 1]`.
-    ///
-    /// ```ignore
-    /// let v = 0.5_f64.witness().by(Value01::prove())?;
-    /// ```
-    pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
-        |v| {
-            if !v.is_finite() {
-                return Err("Value01: value must be finite");
-            }
-            if *v < T::zero() || *v > T::one() {
-                return Err("Value01: value must be in [0, 1]");
-            }
-            Ok(Value01)
+    /// Validate `v` is finite and in `[0, 1]`, returning the credential.
+    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
+        if !v.is_finite() {
+            return Err("Value01: value must be finite");
         }
+        if v < T::zero() || v > T::one() {
+            return Err("Value01: value must be in [0, 1]");
+        }
+        Ok(Value01)
     }
 }
 
@@ -43,32 +33,22 @@ impl Value01 {
 
 /// Witness credential for a non-negative, finite weight value.
 ///
-/// This type is a ZST credential only. Construct a `Witnessed<T, Weight>`
-/// by passing [`Weight::prove`] to `witnessed`'s validation framework:
-///
+/// Use with `witnessed`:
 /// ```ignore
-/// let w: Witnessed<f64, Weight> = 2.0.witness().by(Weight::prove())?;
+/// let w = 2.0_f64.witness().by(|v| Weight::prove(*v))?;
 /// ```
 pub struct Weight;
 
 impl Weight {
-    /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
-    ///
-    /// Validates that the value is finite and non-negative.
-    ///
-    /// ```ignore
-    /// let w = 2.0_f64.witness().by(Weight::prove())?;
-    /// ```
-    pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
-        |v| {
-            if !v.is_finite() {
-                return Err("Weight: value must be finite");
-            }
-            if *v < T::zero() {
-                return Err("Weight: value must be non-negative");
-            }
-            Ok(Weight)
+    /// Validate `v` is finite and non-negative, returning the credential.
+    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
+        if !v.is_finite() {
+            return Err("Weight: value must be finite");
         }
+        if v < T::zero() {
+            return Err("Weight: value must be non-negative");
+        }
+        Ok(Weight)
     }
 }
 
@@ -83,7 +63,7 @@ impl Weight {
 /// sorted container to verify membership.
 ///
 /// ```ignore
-/// let set = weights.witness().by(NormalizedContainer::prove())?;
+/// let set = weights.witness().by(|w| NormalizedContainer::prove(w.iter().copied()))?;
 /// let w = 0.3_f64.witness().by(NormalizedWeight::from_normalized_container(&set))?;
 /// ```
 pub struct NormalizedWeight;
@@ -120,42 +100,50 @@ impl NormalizedWeight {
 /// Witness credential for a container validated as a complete set of
 /// normalized weights (each in `[0, 1]`, sum to 1).
 ///
-/// Individual credentials are created via
-/// [`NormalizedWeight::from_normalized_container`], which binary-searches
-/// this validated container to verify membership.
-///
 /// ```ignore
-/// let set = weights.witness().by(NormalizedContainer::prove())?;
-/// let w = 0.3_f64.witness().by(NormalizedWeight::from_normalized_container(&set))?;
+/// let set = weights.witness().by(
+///     |w| NormalizedContainer::prove(w.iter().copied())
+/// )?;
+/// let w = 0.3_f64.witness().by(
+///     |v| NormalizedWeight::from_normalized_container(*v, &set)
+/// )?;
 /// ```
 pub struct NormalizedContainer;
 
 impl NormalizedContainer {
-    /// Return a proving closure that validates every value is finite,
-    /// in `[0, 1]`, and the set sums to 1.
-    pub fn prove<T: ScoreFloat>() -> impl Fn(&Vec<T>) -> Result<Self, &'static str> {
-        |weights| {
-            let mut sum = T::zero();
-            for &w in weights {
-                if !w.is_finite() {
-                    return Err("NormalizedContainer: value must be finite");
-                }
-                if w < T::zero() || w > T::one() {
-                    return Err("NormalizedContainer: value must be in [0, 1]");
-                }
-                sum = sum + w;
+    /// Validate every value is finite, in `[0, 1]`, and the set sums to 1.
+    ///
+    /// Use with `witnessed`:
+    /// ```ignore
+    /// let set = weights.witness().by(
+    ///     |w| NormalizedContainer::prove(w.iter().copied())
+    /// )?;
+    /// ```
+    pub fn prove<T: ScoreFloat>(
+        weights: impl IntoIterator<Item = T>,
+    ) -> Result<Self, &'static str> {
+        let mut sum = T::zero();
+        let mut len = 0_usize;
+        for w in weights {
+            if !w.is_finite() {
+                return Err("NormalizedContainer: value must be finite");
             }
-            let diff = if sum > T::one() {
-                sum - T::one()
-            } else {
-                T::one() - sum
-            };
-            let tol = T::from_f64(1e-9) * T::from_f64(weights.len() as f64).max(T::one());
-            if diff > tol {
-                return Err("NormalizedContainer: set must sum to 1");
+            if w < T::zero() || w > T::one() {
+                return Err("NormalizedContainer: value must be in [0, 1]");
             }
-            Ok(NormalizedContainer)
+            sum = sum + w;
+            len += 1;
         }
+        let diff = if sum > T::one() {
+            sum - T::one()
+        } else {
+            T::one() - sum
+        };
+        let tol = T::from_f64(1e-9) * T::from_f64(len as f64).max(T::one());
+        if diff > tol {
+            return Err("NormalizedContainer: set must sum to 1");
+        }
+        Ok(NormalizedContainer)
     }
 }
 

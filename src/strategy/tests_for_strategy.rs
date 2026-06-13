@@ -6,14 +6,14 @@ fn weighted_mean_normalizes() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let b = metric("b")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let ms = score_set! {
@@ -36,14 +36,14 @@ fn weighted_mean_rejects_zero_sum() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let m2 = metric("m2")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     assert!(
@@ -62,14 +62,14 @@ fn weighted_mean_equal_weights() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let m2 = metric("m2")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let ms = score_set! {
@@ -92,7 +92,7 @@ fn weighted_mean_single_member() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let ms = score_set! {
@@ -112,7 +112,7 @@ fn weighted_mean_with_f32() {
         .measure()
         .by(|v: f32| v)
         .map01()
-        .by(|raw: &f32, _: f32| (*raw).witness().by(Value01::prove()).unwrap())
+        .by(|raw: &f32, _: f32| (*raw).witness().by(|v| Value01::prove(*v)).unwrap())
         .build();
 
     let ms = score_set! {
