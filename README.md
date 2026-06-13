@@ -1,9 +1,6 @@
 # score-set
 
-A Rust library for building **static weighted scoring operator sets**.
-
-Declare a set of named metrics with weights, normalize at build time, score
-at runtime via a user-provided closure that freely injects inputs and context.
+A Rust library for building **static weighted scoring operator sets**. Declare a set of named metrics with weights, normalize at build time, score at runtime via a user-provided closure that freely injects inputs and context.
 
 ## Usage
 
@@ -47,11 +44,7 @@ let score = ms.score().by(|(gc, len)| {
 
 ## Concepts
 
-### Metrics
-
-A `Metric` is a two-stage scoring operator: `measure` maps input to a raw
-value, `map01` maps the raw value (with the original input available for
-context) to a validated `[0, 1]` score.
+**Metrics.** A `Metric` is a two-stage scoring operator: `measure` maps input to a raw value, `map01` maps the raw value (with the original input still available for context) to a validated `[0, 1]` score.
 
 ```rust
 metric("name")
@@ -59,30 +52,13 @@ metric("name")
     .map01().by(|raw, input| Value01::witness(score).unwrap())
 ```
 
-### Score Sets
-
-`score_set!` declares a weighted set of metrics. Weights are validated
-strictly positive (`GtZero`) and normalized so they sum to 1. Build time
-error if validation fails.
+**Score Sets.** `score_set!` declares a weighted set of metrics. Weights are validated strictly positive and normalized to sum to 1. Validation fails at build time if any weight is ≤ 0.
 
 ```rust
-let ms = score_set! {
-    2.0 => gc_metric,
-    3.0 => len_metric,
-    5.0 => specificity,
-}?;
+let ms = score_set! { 2.0 => gc, 3.0 => len, 5.0 => specificity }?;
 ```
 
-### Scoring
-
-`score().by(closure)` receives access to every member. Each member provides:
-
-- `.metric()` — the metric itself
-- `.contribute(value01)` — `score × normalized_weight`
-
-The closure composes contributions arbitrarily — different operators can
-consume different input shapes, capture external context, or conditionally
-participate.
+**Scoring.** `score().by(closure)` gives access to every member. Each member provides `.metric()` (the operator) and `.contribute(value01)` (score × normalized weight). The closure composes contributions arbitrarily — different operators can consume different input shapes, capture external context, or conditionally participate.
 
 ```rust
 let score = ms.score().by(|(gc, len, spec)| {
@@ -92,21 +68,18 @@ let score = ms.score().by(|(gc, len, spec)| {
 });
 ```
 
-### Controlled values
+**Controlled values.**
 
 | Function | Returns | Guarantee |
 |---|---|---|
 | `Value01::witness(v)` | `Witnessed<T, Value01>` | finite, ∈ [0, 1] |
 | `NormalizedContainer::witness(vec)` | `Witnessed<Vec<T>, NormalizedContainer>` | all ∈ [0, 1], sum = 1 |
 
-`NormalizedWeight` credentials are extracted from a validated container via
-`NormalizedWeight::from_normalized_container(value, &container)`, which
-binary-searches for membership verification.
+`NormalizedWeight` credentials are extracted from a validated container via `NormalizedWeight::from_normalized_container(value, &container)`, which binary-searches for membership verification.
 
 ## Arity
 
-Default supports up to 8 metrics per set. Opt into larger arities via
-Cargo features:
+Default supports up to 8 metrics per set. Opt into larger arities via Cargo features:
 
 ```toml
 score-set = { features = ["level-16"] }   # up to 16
