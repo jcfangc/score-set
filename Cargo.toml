@@ -1,6 +1,6 @@
 [workspace]
 members = ["xtask"]
-resolver = "2"
+resolver = "3"
 
 [package]
 name = "score-set"

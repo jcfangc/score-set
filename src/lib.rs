@@ -12,26 +12,24 @@
 //! use score_set::*;
 //!
 //! let gc = metric("gc")
-//!     .measure().by(|dna: &str| gc_ratio(dna))
-//!     .map01().by(|raw: &f64, _: &str| Value01::witness(*raw).unwrap())
-//!     .build();
+//!     .measure().by(|dna: &&str| gc_ratio(dna))
+//!     .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 //!
 //! let len = metric("len")
-//!     .measure().by(|len: usize| len)
-//!     .map01().by(|raw: &usize, _: usize| {
+//!     .measure().by(|len: &usize| *len)
+//!     .map01().by(|raw: &usize, _: &usize| {
 //!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
-//!     })
-//!     .build();
+//!     });
 //!
 //! let ms = score_set! {
 //!     2.0 => gc,
 //!     3.0 => len,
-//! }.aggregate(strategy::weighted_mean)?;
+//! }?;
 //!
 //! let dna = "ACGTACGT";
 //! let score = ms.score().by(|(gc, len)| {
-//!     gc.contribute(gc.metric().eval(dna))
-//!         + len.contribute(len.metric().eval(dna.len()))
+//!     gc.contribute(gc.metric().eval(&dna))
+//!         + len.contribute(len.metric().eval(&dna.len()))
 //! });
 //! # Ok::<(), &'static str>(())
 //! ```
@@ -41,26 +39,17 @@ mod gen_tuple;
 mod macros;
 mod member;
 mod metric;
-mod op;
 mod set;
-pub mod strategy;
 mod value;
 
 // Public API
-pub use float::ScoreFloat;
+pub use float::Float;
 // score_set! is exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
-pub use op::{Op, op};
-pub use set::{MetricSet, RawMetricSet, ScoreStage};
-pub use value::{Contribution, ContributionSum, NormalizedWeight, Score01, Value01, Weight};
-pub use witnessed::Witnessed;
+pub use set::{ScoreSet, ScoreStage};
+pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
+pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]
 mod lab;
-#[cfg(test)]
-mod tests_for_metric;
-#[cfg(test)]
-mod tests_for_set;
-#[cfg(test)]
-mod tests_for_value;

@@ -1,9 +1,7 @@
 /// Declare a set of `weight => metric` pairs.
 ///
-/// The macro only wraps each entry into a [`RawMember`](crate::RawMember) and
-/// collects them into a [`RawMetricSet`](crate::RawMetricSet). Call
-/// `.aggregate(strategy)` on the result to normalize weights and build a
-/// [`MetricSet`](crate::MetricSet).
+/// Each weight is validated > 0 via [`GtZero`](crate::GtZero). The macro
+/// normalizes weights and returns a [`ScoreSet`](crate::ScoreSet) directly.
 ///
 /// # Example
 ///
@@ -12,13 +10,15 @@
 ///     2.0 => gc_metric,
 ///     3.0 => len_metric,
 ///     5.0 => spec_metric,
-/// }.aggregate(score_set::strategy::weighted_mean)?;
+/// }?;
 /// ```
 #[macro_export]
 macro_rules! score_set {
-    ($($weight:expr => $metric:expr),+ $(,)?) => {{
-        $crate::RawMetricSet::new((
-            $($crate::raw_member($weight, $metric)),+
-        ))
-    }};
+    ($($weight:expr => $metric:expr),+ $(,)?) => {
+        (|| -> Result<_, &'static str> {
+            $crate::ScoreSet::normalize((
+                $($crate::raw_member($weight, $metric)?,)+
+            ))
+        })()
+    };
 }

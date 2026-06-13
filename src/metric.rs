@@ -1,4 +1,4 @@
-use crate::float::ScoreFloat;
+use crate::float::Float;
 use crate::value::Value01;
 use core::marker::PhantomData;
 use witnessed::Witnessed;
@@ -68,8 +68,8 @@ pub struct Map01Stage<I, Raw, M> {
 impl<I, Raw, M> Map01Stage<I, Raw, M> {
     /// Supply the map01 closure `Fn(&Raw, I) -> Witnessed<T, Value01>`.
     ///
-    /// The type `T: ScoreFloat` is inferred from the return type of the closure.
-    pub fn by<T: ScoreFloat, F>(self, map01: F) -> Metric<T, I, Raw, M, F> {
+    /// The type `T: Float` is inferred from the return type of the closure.
+    pub fn by<T: Float, F>(self, map01: F) -> Metric<T, I, Raw, M, F> {
         Metric {
             name: self.name,
             measure: self.measure,
@@ -98,15 +98,14 @@ pub struct Metric<T, I, Raw, M, F> {
     _phantom: PhantomData<(T, I, Raw)>,
 }
 
-impl<T: ScoreFloat, I, Raw, M, F> Metric<T, I, Raw, M, F>
+impl<T: Float, I, Raw, M, F> Metric<T, I, Raw, M, F>
 where
-    I: Copy,
-    M: Fn(I) -> Raw,
-    F: Fn(&Raw, I) -> Witnessed<T, Value01>,
+    M: Fn(&I) -> Raw,
+    F: Fn(&Raw, &I) -> Witnessed<T, Value01>,
 {
     /// Evaluate this metric against an input, producing a `[0, 1]` score.
     #[inline]
-    pub fn eval(&self, input: I) -> Witnessed<T, Value01> {
+    pub fn eval(&self, input: &I) -> Witnessed<T, Value01> {
         let raw = (self.measure)(input);
         (self.map01)(&raw, input)
     }
@@ -115,12 +114,6 @@ where
     #[inline]
     pub fn name(&self) -> &str {
         self.name
-    }
-
-    /// No-op terminal method for builder chaining clarity.
-    #[inline]
-    pub fn build(self) -> Self {
-        self
     }
 }
 
@@ -135,3 +128,6 @@ impl<T, I, Raw, M: Clone, F: Clone> Clone for Metric<T, I, Raw, M, F> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests_for_metric;

@@ -1,66 +1,39 @@
-use crate::float::ScoreFloat;
+use crate::float::Float;
 use crate::member::Members;
+use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
 
 // ---------------------------------------------------------------------------
-// RawMetricSet — pre-aggregation
+// ScoreSet — normalized weighted set of scoring operators
 // ---------------------------------------------------------------------------
 
-/// Holds a tuple of [`RawMember`](crate::RawMember)s, ready for aggregation.
+/// A static weighted set of scoring operators with normalized weights.
 ///
-/// Produced by the [`score_set!`](crate::score_set!) macro. Call
-/// [`.aggregate(strategy)`](RawMetricSet::aggregate) to normalize weights and
-/// build a [`MetricSet`].
-pub struct RawMetricSet<T: ScoreFloat, RawMembers> {
-    pub(crate) raw: RawMembers,
-    _phantom: PhantomData<T>,
-}
-
-impl<T: ScoreFloat, RawMembers> RawMetricSet<T, RawMembers> {
-    /// Create a new `RawMetricSet` from a tuple of `RawMember`s.
-    #[inline]
-    pub fn new(raw: RawMembers) -> Self {
-        Self {
-            raw,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Apply an aggregation strategy to normalize weights and produce a
-    /// [`MetricSet`].
-    ///
-    /// The strategy receives the raw member tuple and returns a normalized one.
-    /// Use [`strategy::weighted_mean`](crate::strategy::weighted_mean) or
-    /// pass a custom closure.
-    pub fn aggregate<M, F>(self, strategy: F) -> Result<MetricSet<T, M>, &'static str>
-    where
-        M: Members<T, Raw = RawMembers>,
-        F: FnOnce(RawMembers) -> Result<M, &'static str>,
-    {
-        let members = strategy(self.raw)?;
-        Ok(MetricSet {
-            members,
-            _phantom: PhantomData,
-        })
-    }
-}
-
-// ---------------------------------------------------------------------------
-// MetricSet — post-aggregation, ready for scoring
-// ---------------------------------------------------------------------------
-
-/// A static weighted set of scoring operators.
-///
-/// Holds a flat tuple of [`Member`](crate::Member)s with normalized weights.
-/// Call [`.score()`](MetricSet::score) to enter the scoring stage.
-pub struct MetricSet<T: ScoreFloat, Members> {
+/// Construct via [`score_set!`](crate::score_set!) or
+/// [`ScoreSet::normalize`]. Call [`.score()`](ScoreSet::score) to enter the
+/// scoring stage.
+pub struct ScoreSet<T: Float, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ScoreFloat, Members> MetricSet<T, Members> {
-    /// Enter the scoring stage, returning a [`ScoreStage`] bound to this set's
-    /// members.
+impl<T: Float, Members> ScoreSet<T, Members>
+where
+    Members: crate::Members<T>,
+{
+    /// Normalize raw weights and validate the resulting set.
+    pub fn normalize(raw: Members::Raw) -> Result<Self, &'static str> {
+        let raw_weights = Members::extract_raw_weights(&raw);
+        let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
+        let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
+        let container = NormalizedContainer::witness(normalized)?;
+        Ok(ScoreSet {
+            members: Members::from_raw_with_weights(raw, &container),
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Enter the scoring stage.
     #[inline]
     pub fn score(&self) -> ScoreStage<'_, T, Members> {
         ScoreStage {
@@ -74,21 +47,17 @@ impl<T: ScoreFloat, Members> MetricSet<T, Members> {
 // ScoreStage — user-provided scoring closure
 // ---------------------------------------------------------------------------
 
-/// The scoring stage, created by [`MetricSet::score`].
+/// The scoring stage, created by [`ScoreSet::score`].
 ///
 /// Call [`.by(closure)`](ScoreStage::by) to evaluate the set with an
 /// arbitrary composition of its members.
-pub struct ScoreStage<'a, T: ScoreFloat, Members> {
+pub struct ScoreStage<'a, T: Float, Members> {
     members: &'a Members,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
+impl<'a, T: Float, Members> ScoreStage<'a, T, Members> {
     /// Score the set using a user-provided closure.
-    ///
-    /// The closure receives a reference to the member tuple and is free to
-    /// call each member's metric with whatever input shape it needs, combine
-    /// contributions, and return a final result.
     #[inline]
     pub fn by<F, R>(self, f: F) -> R
     where
@@ -97,3 +66,6 @@ impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
         f(self.members)
     }
 }
+
+#[cfg(test)]
+mod tests_for_set;
