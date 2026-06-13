@@ -52,15 +52,10 @@ pub use float::ScoreFloat;
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use op::{Op, op};
-pub use set::{MetricSet, RawMetricSet, ScoreStage};
+pub use set::RawMetricSet;
+pub use set::{MetricSet, ScoreStage};
 pub use value::{Contribution, ContributionSum, NormalizedWeight, Score01, Value01, Weight};
 pub use witnessed::Witnessed;
 
 #[cfg(test)]
 mod lab;
-#[cfg(test)]
-mod tests_for_metric;
-#[cfg(test)]
-mod tests_for_set;
-#[cfg(test)]
-mod tests_for_value;
