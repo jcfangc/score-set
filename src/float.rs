@@ -27,76 +27,54 @@ pub(crate) mod sealed {
         fn min(self, other: Self) -> Self;
         fn max(self, other: Self) -> Self;
         fn exp(self) -> Self;
+        fn ln(self) -> Self;
+        fn epsilon() -> Self;
     }
 
     impl SealedFloat for f32 {
         #[inline]
-        fn zero() -> Self {
-            0.0
-        }
+        fn zero() -> Self { 0.0 }
         #[inline]
-        fn one() -> Self {
-            1.0
-        }
+        fn one() -> Self { 1.0 }
         #[inline]
-        fn is_finite(self) -> bool {
-            f32::is_finite(self)
-        }
+        fn is_finite(self) -> bool { f32::is_finite(self) }
         #[inline]
-        fn from_f64(v: f64) -> Self {
-            v as f32
-        }
+        fn from_f64(v: f64) -> Self { v as f32 }
         #[inline]
-        fn abs(self) -> Self {
-            f32::abs(self)
-        }
+        fn abs(self) -> Self { f32::abs(self) }
         #[inline]
-        fn min(self, other: Self) -> Self {
-            f32::min(self, other)
-        }
+        fn min(self, other: Self) -> Self { f32::min(self, other) }
         #[inline]
-        fn max(self, other: Self) -> Self {
-            f32::max(self, other)
-        }
+        fn max(self, other: Self) -> Self { f32::max(self, other) }
         #[inline]
-        fn exp(self) -> Self {
-            f32::exp(self)
-        }
+        fn exp(self) -> Self { f32::exp(self) }
+        #[inline]
+        fn ln(self) -> Self { f32::ln(self) }
+        #[inline]
+        fn epsilon() -> Self { f32::EPSILON }
     }
 
     impl SealedFloat for f64 {
         #[inline]
-        fn zero() -> Self {
-            0.0
-        }
+        fn zero() -> Self { 0.0 }
         #[inline]
-        fn one() -> Self {
-            1.0
-        }
+        fn one() -> Self { 1.0 }
         #[inline]
-        fn is_finite(self) -> bool {
-            f64::is_finite(self)
-        }
+        fn is_finite(self) -> bool { f64::is_finite(self) }
         #[inline]
-        fn from_f64(v: f64) -> Self {
-            v
-        }
+        fn from_f64(v: f64) -> Self { v }
         #[inline]
-        fn abs(self) -> Self {
-            f64::abs(self)
-        }
+        fn abs(self) -> Self { f64::abs(self) }
         #[inline]
-        fn min(self, other: Self) -> Self {
-            f64::min(self, other)
-        }
+        fn min(self, other: Self) -> Self { f64::min(self, other) }
         #[inline]
-        fn max(self, other: Self) -> Self {
-            f64::max(self, other)
-        }
+        fn max(self, other: Self) -> Self { f64::max(self, other) }
         #[inline]
-        fn exp(self) -> Self {
-            f64::exp(self)
-        }
+        fn exp(self) -> Self { f64::exp(self) }
+        #[inline]
+        fn ln(self) -> Self { f64::ln(self) }
+        #[inline]
+        fn epsilon() -> Self { f64::EPSILON }
     }
 }
 

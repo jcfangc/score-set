@@ -96,10 +96,29 @@ impl<I, T: Float, M> Map01Stage<I, T, M> {
 
     /// Sigmoid: `1 / (1 + exp(-k * (raw - x0)))`.
     ///
-    /// `k > 0` gives an increasing curve (low → high),
-    /// `k < 0` gives a decreasing curve (high → low).
+    /// `k > 0` gives an increasing curve, `k < 0` decreasing.
     pub fn sigmoid(self, x0: T, k: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
     {
+        self.by(move |raw: &T, _: &I| {
+            let v = T::one() / (T::one() + (-k * (*raw - x0)).exp());
+            Value01::witness(v).unwrap()
+        })
+    }
+
+    /// Sigmoid fitted to a `[low, high]` range.
+    ///
+    /// `x0 = (low + high) / 2`, `k = 2·ln(1/ε − 1) / (high − low)` where
+    /// `ε = 10·epsilon`. At `raw = low` the output is ≈ ε, at `raw = high`
+    /// it is ≈ 1−ε, with a detectable slope in between.
+    pub fn sigmoid_range(
+        self,
+        low: T,
+        high: T,
+    ) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        let two = T::from_f64(2.0);
+        let eps = T::from_f64(10.0) * T::epsilon();
+        let x0 = (low + high) / two;
+        let k = two * (T::one() / eps - T::one()).ln() / (high - low);
         self.by(move |raw: &T, _: &I| {
             let v = T::one() / (T::one() + (-k * (*raw - x0)).exp());
             Value01::witness(v).unwrap()
