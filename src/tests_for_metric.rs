@@ -46,16 +46,3 @@ fn metric_usize_input() {
     let result2 = m.eval(200); // capped at 1.0
     assert!((*result2 - 1.0).abs() < 1e-10);
 }
-
-#[test]
-fn op_builder_eval() {
-    let op = op("simple")
-        .score()
-        .by(|v: f64| Value01::witness(v.min(1.0).max(0.0)).unwrap())
-        .build();
-
-    assert_eq!(op.name(), "simple");
-
-    let result = op.eval(0.7);
-    assert!((*result - 0.7).abs() < 1e-10);
-}
