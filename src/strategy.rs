@@ -1,6 +1,5 @@
 use crate::float::ScoreFloat;
 use crate::member::Members;
-use crate::value::Weight;
 
 // ---------------------------------------------------------------------------
 // weighted_mean — normalize weights so they sum to 1
@@ -13,7 +12,7 @@ use crate::value::Weight;
 /// # Errors
 ///
 /// Returns an error if:
-/// - any raw weight fails [`Weight::validate`](crate::Weight::validate)
+/// - any raw weight is non-finite or negative
 /// - the sum of weights is zero
 /// - the resulting normalized weights fail
 ///   [`NormalizedWeight::validate_set`](crate::NormalizedWeight::validate_set)
@@ -28,7 +27,12 @@ where
 
     // Validate each raw weight.
     for &w in &raw_weights {
-        Weight::validate(w)?;
+        if !w.is_finite() {
+            return Err("Weight: value must be finite");
+        }
+        if w < T::zero() {
+            return Err("Weight: value must be non-negative");
+        }
     }
 
     // Compute sum and check positivity.

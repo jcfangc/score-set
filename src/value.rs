@@ -17,25 +17,21 @@ use witnessed::Witnessed;
 pub struct Value01;
 
 impl Value01 {
-    /// Validate that `v` is finite and in `[0, 1]`.
-    pub fn validate<T: ScoreFloat>(v: T) -> Result<(), &'static str> {
-        if !v.is_finite() {
-            return Err("Value01: value must be finite");
-        }
-        if v < T::zero() || v > T::one() {
-            return Err("Value01: value must be in [0, 1]");
-        }
-        Ok(())
-    }
-
     /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
+    ///
+    /// Validates that the value is finite and in `[0, 1]`.
     ///
     /// ```ignore
     /// let v = 0.5_f64.witness().by(Value01::prove())?;
     /// ```
     pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
         |v| {
-            Self::validate(*v)?;
+            if !v.is_finite() {
+                return Err("Value01: value must be finite");
+            }
+            if *v < T::zero() || *v > T::one() {
+                return Err("Value01: value must be in [0, 1]");
+            }
             Ok(Value01)
         }
     }
@@ -56,25 +52,21 @@ impl Value01 {
 pub struct Weight;
 
 impl Weight {
-    /// Validate that `v` is finite and non-negative.
-    pub fn validate<T: ScoreFloat>(v: T) -> Result<(), &'static str> {
-        if !v.is_finite() {
-            return Err("Weight: value must be finite");
-        }
-        if v < T::zero() {
-            return Err("Weight: value must be non-negative");
-        }
-        Ok(())
-    }
-
     /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
+    ///
+    /// Validates that the value is finite and non-negative.
     ///
     /// ```ignore
     /// let w = 2.0_f64.witness().by(Weight::prove())?;
     /// ```
     pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
         |v| {
-            Self::validate(*v)?;
+            if !v.is_finite() {
+                return Err("Weight: value must be finite");
+            }
+            if *v < T::zero() {
+                return Err("Weight: value must be non-negative");
+            }
             Ok(Weight)
         }
     }
@@ -258,7 +250,12 @@ pub struct Score01<T: ScoreFloat>(pub(crate) T);
 impl<T: ScoreFloat> Score01<T> {
     /// Create a `Score01` from a raw value, validating it.
     pub fn try_new(v: T) -> Result<Self, &'static str> {
-        Value01::validate(v)?;
+        if !v.is_finite() {
+            return Err("Score01: value must be finite");
+        }
+        if v < T::zero() || v > T::one() {
+            return Err("Score01: value must be in [0, 1]");
+        }
         Ok(Self(v))
     }
 
