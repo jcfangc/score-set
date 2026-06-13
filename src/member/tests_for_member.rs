@@ -1,5 +1,10 @@
 use crate::*;
 
+/// Create a validated normalized container with the given sorted weights.
+fn normalized_set(weights: Vec<f64>) -> Witnessed<Vec<f64>, NormalizedContainer> {
+    weights.witness().by(NormalizedContainer::prove()).unwrap()
+}
+
 #[test]
 fn raw_member_construction() {
     let rm = raw_member(2.5_f64, "metric-data");
@@ -10,19 +15,21 @@ fn raw_member_construction() {
 #[test]
 fn member_contribute() {
     let v = 0.6_f64.witness().by(Value01::prove()).unwrap();
-    let w = unsafe { NormalizedContainer::witness_member(0.5_f64) };
+    let container = normalized_set(vec![1.0]);
+    let w = NormalizedWeight::from_normalized_container(1.0, &container).unwrap();
     let m = Member {
         weight: w,
         metric: "test",
     };
 
     let c = m.contribute(v);
-    assert!((c.into_inner() - 0.3).abs() < 1e-10);
+    assert!((c.into_inner() - 0.6).abs() < 1e-10);
 }
 
 #[test]
 fn member_metric_access() {
-    let w = unsafe { NormalizedContainer::witness_member(0.5_f64) };
+    let container = normalized_set(vec![1.0]);
+    let w = NormalizedWeight::from_normalized_container(1.0, &container).unwrap();
     let m = Member {
         weight: w,
         metric: 42_u32,
@@ -34,7 +41,8 @@ fn member_metric_access() {
 #[test]
 fn member_contribute_zero() {
     let v = 1.0_f64.witness().by(Value01::prove()).unwrap();
-    let w = unsafe { NormalizedContainer::witness_member(0.0_f64) };
+    let container = normalized_set(vec![0.0, 0.5, 0.5]);
+    let w = NormalizedWeight::from_normalized_container(0.0, &container).unwrap();
     let m = Member {
         weight: w,
         metric: (),
@@ -47,12 +55,13 @@ fn member_contribute_zero() {
 #[test]
 fn member_contribute_one() {
     let v = 1.0_f64.witness().by(Value01::prove()).unwrap();
-    let w = unsafe { NormalizedContainer::witness_member(1.0_f64) };
+    let container = normalized_set(vec![0.5, 0.5]);
+    let w = NormalizedWeight::from_normalized_container(0.5, &container).unwrap();
     let m = Member {
         weight: w,
         metric: (),
     };
 
     let c = m.contribute(v);
-    assert!((c.into_inner() - 1.0).abs() < 1e-10);
+    assert!((c.into_inner() - 0.5).abs() < 1e-10);
 }

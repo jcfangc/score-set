@@ -18,9 +18,13 @@ impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
         vec![raw.0.weight]
     }
 
-    unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self {
+    fn from_raw_with_weights(
+        raw: Self::Raw,
+        container: &witnessed::Witnessed<Vec<T>, crate::NormalizedContainer>,
+    ) -> Self {
         (crate::Member {
-            weight: unsafe { crate::NormalizedContainer::witness_member(normalized[0]) },
+            weight: crate::NormalizedWeight::from_normalized_container(container[0], container)
+                .unwrap(),
             metric: raw.0.metric,
         },)
     }
@@ -38,15 +42,16 @@ macro_rules! impl_members_for_tuple {
                 vec![$(raw.$idx.weight),+]
             }
 
-            unsafe fn from_raw_with_weights(
+            fn from_raw_with_weights(
                 raw: Self::Raw,
-                normalized: &[T],
+                container: &witnessed::Witnessed<Vec<T>, $crate::NormalizedContainer>,
             ) -> Self {
                 (
                     $($crate::Member {
-                        weight: unsafe {
-                            $crate::NormalizedContainer::witness_member(normalized[$idx])
-                        },
+                        weight: $crate::NormalizedWeight::from_normalized_container(
+                            container[$idx], container,
+                        )
+                        .unwrap(),
                         metric: raw.$idx.metric,
                     },)+
                 )

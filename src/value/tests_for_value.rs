@@ -27,25 +27,44 @@ fn weight_rejects_negative() {
 }
 
 #[test]
-fn normalized_weight_validates_set() {
-    assert!(NormalizedContainer::validate_set(&[0.2_f64, 0.3, 0.5]).is_ok());
-    assert!(NormalizedContainer::validate_set(&[0.2_f64, 0.3]).is_err());
-    assert!(NormalizedContainer::validate_set(&[1.2_f64, -0.2]).is_err());
+fn normalized_container_prove() {
+    assert!(
+        vec![0.2_f64, 0.3, 0.5]
+            .witness()
+            .by(NormalizedContainer::prove())
+            .is_ok()
+    );
+    assert!(
+        vec![0.2_f64, 0.3]
+            .witness()
+            .by(NormalizedContainer::prove())
+            .is_err()
+    );
+    assert!(
+        vec![1.2_f64, -0.2]
+            .witness()
+            .by(NormalizedContainer::prove())
+            .is_err()
+    );
 }
 
 #[test]
 fn contribution_arithmetic() {
+    let container = vec![1.0_f64]
+        .witness()
+        .by(NormalizedContainer::prove())
+        .unwrap();
     let v = 0.6_f64.witness().by(Value01::prove()).unwrap();
-    let w = unsafe { NormalizedContainer::witness_member(0.5_f64) };
+    let w = NormalizedWeight::from_normalized_container(1.0_f64, &container).unwrap();
     let c = Contribution::new(v, w);
-    assert!((c.into_inner() - 0.3).abs() < 1e-10);
+    assert!((c.into_inner() - 0.6).abs() < 1e-10);
 
     let v2 = 0.4_f64.witness().by(Value01::prove()).unwrap();
-    let w2 = unsafe { NormalizedContainer::witness_member(0.5_f64) };
+    let w2 = NormalizedWeight::from_normalized_container(1.0_f64, &container).unwrap();
     let c2 = Contribution::new(v2, w2);
 
     let sum = c + c2;
-    assert!((sum.into_inner() - 0.5).abs() < 1e-10);
+    assert!((sum.into_inner() - 1.0).abs() < 1e-10);
 }
 
 #[test]
@@ -59,6 +78,10 @@ fn score01_construction() {
 fn f32_support() {
     assert!(0.5_f32.witness().by(Value01::prove()).is_ok());
     assert!(3.0_f32.witness().by(Weight::prove()).is_ok());
-    let nw = unsafe { NormalizedContainer::witness_member(0.25_f32) };
+    let container = vec![0.25_f32, 0.25, 0.5]
+        .witness()
+        .by(NormalizedContainer::prove())
+        .unwrap();
+    let nw = NormalizedWeight::from_normalized_container(0.25_f32, &container).unwrap();
     assert!((*nw - 0.25_f32).abs() < 1e-7);
 }

@@ -1,5 +1,5 @@
 use crate::float::ScoreFloat;
-use crate::value::{Contribution, NormalizedWeight, Value01};
+use crate::value::{Contribution, NormalizedContainer, NormalizedWeight, Value01};
 use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
@@ -17,17 +17,15 @@ pub trait Members<T: ScoreFloat>: Sized {
     /// Extract raw weight values from the raw member tuple.
     fn extract_raw_weights(raw: &Self::Raw) -> Vec<T>;
 
-    /// Build the normalized member tuple from raw members and validated
-    /// normalized weights.
+    /// Build the normalized member tuple from raw members and a validated
+    /// normalized container.
     ///
-    /// The `normalized` slice must have been validated via
-    /// [`NormalizedContainer::validate_set`](crate::NormalizedContainer::validate_set).
-    ///
-    /// # Safety
-    ///
-    /// The full set of normalized weights must have passed
-    /// [`NormalizedContainer::validate_set`](crate::NormalizedContainer::validate_set).
-    unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self;
+    /// Each member's credential is constructed via
+    /// [`NormalizedWeight::from_normalized_container`].
+    fn from_raw_with_weights(
+        raw: Self::Raw,
+        container: &Witnessed<Vec<T>, NormalizedContainer>,
+    ) -> Self;
 }
 
 // ---------------------------------------------------------------------------

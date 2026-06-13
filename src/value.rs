@@ -89,21 +89,23 @@ impl Weight {
 pub struct NormalizedWeight;
 
 impl NormalizedWeight {
-    /// Return a proving closure that binary-searches `container` for the
-    /// value being witnessed. Only values found in the validated sorted
-    /// set receive a `NormalizedWeight` credential.
+    /// Verify `value` is a member of a validated normalized set and
+    /// construct a credential.
+    ///
+    /// Binary-searches the sorted `container` to confirm membership.
     pub fn from_normalized_container<T: ScoreFloat>(
+        value: T,
         container: &Witnessed<Vec<T>, NormalizedContainer>,
-    ) -> impl Fn(&T) -> Result<Self, &'static str> + '_ {
-        |v| {
-            if container
-                .binary_search_by(|a| a.partial_cmp(v).unwrap_or(core::cmp::Ordering::Equal))
-                .is_ok()
-            {
-                Ok(NormalizedWeight)
-            } else {
-                Err("NormalizedWeight: value not found in validated set")
-            }
+    ) -> Result<Witnessed<T, Self>, &'static str> {
+        if container
+            .binary_search_by(|a| a.partial_cmp(&value).unwrap_or(core::cmp::Ordering::Equal))
+            .is_ok()
+        {
+            // SAFETY: binary search confirmed membership in a container
+            // that passed NormalizedContainer::validate_set.
+            Ok(unsafe { value.witness().by_unchecked::<NormalizedWeight>() })
+        } else {
+            Err("NormalizedWeight: value not found in validated set")
         }
     }
 }
@@ -126,50 +128,31 @@ impl NormalizedWeight {
 pub struct NormalizedContainer;
 
 impl NormalizedContainer {
-    /// Validate that a slice satisfies normalized-weight invariants:
-    /// every value finite and in `[0, 1]`, set sums to 1.
-    pub fn validate_set<T: ScoreFloat>(weights: &[T]) -> Result<(), &'static str> {
-        let mut sum = T::zero();
-        for &w in weights {
-            if !w.is_finite() {
-                return Err("NormalizedContainer: value must be finite");
-            }
-            if w < T::zero() || w > T::one() {
-                return Err("NormalizedContainer: value must be in [0, 1]");
-            }
-            sum = sum + w;
-        }
-        let diff = if sum > T::one() {
-            sum - T::one()
-        } else {
-            T::one() - sum
-        };
-        let tol = T::from_f64(1e-9) * T::from_f64(weights.len() as f64).max(T::one());
-        if diff > tol {
-            return Err("NormalizedContainer: set must sum to 1");
-        }
-        Ok(())
-    }
-
-    /// Return a proving closure for use with `witnessed`.
+    /// Return a proving closure that validates every value is finite,
+    /// in `[0, 1]`, and the set sums to 1.
     pub fn prove<T: ScoreFloat>() -> impl Fn(&Vec<T>) -> Result<Self, &'static str> {
         |weights| {
-            Self::validate_set(weights)?;
+            let mut sum = T::zero();
+            for &w in weights {
+                if !w.is_finite() {
+                    return Err("NormalizedContainer: value must be finite");
+                }
+                if w < T::zero() || w > T::one() {
+                    return Err("NormalizedContainer: value must be in [0, 1]");
+                }
+                sum = sum + w;
+            }
+            let diff = if sum > T::one() {
+                sum - T::one()
+            } else {
+                T::one() - sum
+            };
+            let tol = T::from_f64(1e-9) * T::from_f64(weights.len() as f64).max(T::one());
+            if diff > tol {
+                return Err("NormalizedContainer: set must sum to 1");
+            }
             Ok(NormalizedContainer)
         }
-    }
-
-    /// Construct a single `NormalizedWeight` credential.
-    ///
-    /// # Safety
-    ///
-    /// The value must belong to a set that passed
-    /// [`validate_set`](Self::validate_set).
-    ///
-    /// This is the single `unsafe` bottleneck for individual
-    /// `NormalizedWeight` construction.
-    pub unsafe fn witness_member<T: ScoreFloat>(value: T) -> Witnessed<T, NormalizedWeight> {
-        unsafe { value.witness().by_unchecked::<NormalizedWeight>() }
     }
 }
 
