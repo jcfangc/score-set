@@ -94,29 +94,21 @@ impl Weight {
 pub struct NormalizedWeight;
 
 impl NormalizedWeight {
-    /// Validate an individual normalized-weight value (without set context).
-    ///
-    /// This checks finiteness and the `[0, 1]` range. For full set validation
-    /// (including the sums-to-1 invariant), use [`validate_set`](Self::validate_set).
-    pub fn validate_individual<T: ScoreFloat>(v: T) -> Result<(), &'static str> {
-        if !v.is_finite() {
-            return Err("NormalizedWeight: value must be finite");
-        }
-        if v < T::zero() || v > T::one() {
-            return Err("NormalizedWeight: value must be in [0, 1]");
-        }
-        Ok(())
-    }
-
     /// Validate that a complete set of normalized weights satisfies invariants.
     ///
-    /// Checks that:
-    /// - every value is finite and in `[0, 1]`
-    /// - the sum of all values is 1.0 (within floating-point tolerance)
+    /// Checks every value is finite and in `[0, 1]`, and that the set sums
+    /// to 1.0 (within floating-point tolerance). This is the only public
+    /// validation entry point — individual `NormalizedWeight` credentials
+    /// can only be constructed via `by_unchecked` after this passes.
     pub fn validate_set<T: ScoreFloat>(weights: &[T]) -> Result<(), &'static str> {
         let mut sum = T::zero();
         for &w in weights {
-            Self::validate_individual(w)?;
+            if !w.is_finite() {
+                return Err("NormalizedWeight: value must be finite");
+            }
+            if w < T::zero() || w > T::one() {
+                return Err("NormalizedWeight: value must be in [0, 1]");
+            }
             sum = sum + w;
         }
         let diff = if sum > T::one() {

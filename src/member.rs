@@ -25,8 +25,8 @@ pub trait Members<T: ScoreFloat>: Sized {
     ///
     /// # Safety
     ///
-    /// Each weight in `normalized` must pass [`NormalizedWeight::validate_individual`]
-    /// and the set must have been validated to sum to 1.
+    /// The full set of normalized weights must have passed
+    /// [`NormalizedWeight::validate_set`](crate::NormalizedWeight::validate_set).
     unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self;
 }
 
