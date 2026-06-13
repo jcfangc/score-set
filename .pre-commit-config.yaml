@@ -1,0 +1,32 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-unstaged
+        name: no unstaged changes in tracked files
+        entry: bash -c 'git diff --exit-code'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      - id: cargo-test
+        name: cargo test --locked
+        entry: cargo test --locked
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: codegen-check
+        name: codegen dry-run diff check
+        entry: bash -c 'cargo run -p xtask -- gen --max 8 && git diff --exit-code -- src/gen_tuple.rs'
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: check-clean-tree
+        name: no uncommitted changes (push guard)
+        entry: bash -c 'git diff --exit-code && git diff --cached --exit-code'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [push]

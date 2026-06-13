@@ -1,3 +1,7 @@
+[workspace]
+members = ["xtask"]
+resolver = "2"
+
 [package]
 name = "score-set"
 version = "0.1.0"

@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::process::Command;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -28,6 +28,7 @@ fn generate(max: usize) {
     let out_dir = env::current_dir().unwrap();
     let out_path = out_dir.join("src").join("gen_tuple.rs");
 
+    let default_level = default_level_for(max);
     let mut content = String::new();
 
     // Header
@@ -36,8 +37,8 @@ fn generate(max: usize) {
          // ---------------------------------------------------------------------------\n\
          // Per-arity implementations of the `Members` trait on flat member tuples.\n\
          //\n\
-         // Generated arities: 1–{max}.\n\
-         // Run `cargo run --bin xtask -- gen --max <N>` to regenerate.\n\
+         // Generated arities: 1–{max} (default feature `{default_level}`).\n\
+         // Run `cargo run --bin xtask -- gen --max <N>` to regenerate for higher arities.\n\
          // ---------------------------------------------------------------------------\n\
          \n\
          "
@@ -99,8 +100,35 @@ macro_rules! impl_members_for_tuple {
         std::process::exit(1);
     });
 
+    // Format the generated file so it never drifts from committed style.
+    let fmt_status = Command::new("cargo")
+        .args(["fmt", "--", out_path.to_str().unwrap()])
+        .status()
+        .unwrap_or_else(|e| {
+            eprintln!("warning: cargo fmt failed on generated file: {e}");
+            std::process::exit(1);
+        });
+    if !fmt_status.success() {
+        eprintln!("warning: cargo fmt exited with non-zero status");
+    }
+
     println!(
         "Generated {} with Members impl for arities 1–{max}",
         out_path.display()
     );
+}
+
+/// Map max arity to the default coarse-grained feature level.
+fn default_level_for(max: usize) -> &'static str {
+    if max <= 8 {
+        "level-8"
+    } else if max <= 16 {
+        "level-16"
+    } else if max <= 32 {
+        "level-32"
+    } else if max <= 64 {
+        "level-64"
+    } else {
+        "level-128"
+    }
 }
