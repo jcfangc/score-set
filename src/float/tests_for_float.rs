@@ -1,15 +1,15 @@
-use crate::ScoreFloat;
-use crate::float::sealed::Float;
+use crate::Float;
+use crate::float::sealed::SealedFloat;
 
 #[test]
 fn f64_is_score_float() {
-    fn assert_score_float<T: ScoreFloat>() {}
+    fn assert_score_float<T: Float>() {}
     assert_score_float::<f64>();
 }
 
 #[test]
 fn f32_is_score_float() {
-    fn assert_score_float<T: ScoreFloat>() {}
+    fn assert_score_float<T: Float>() {}
     assert_score_float::<f32>();
 }
 

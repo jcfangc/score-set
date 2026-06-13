@@ -7,7 +7,7 @@ use core::ops::{Add, Div, Mul, Sub};
 pub(crate) mod sealed {
     use super::*;
 
-    pub trait Float:
+    pub trait SealedFloat:
         Copy
         + PartialOrd
         + PartialEq
@@ -27,7 +27,7 @@ pub(crate) mod sealed {
         fn max(self, other: Self) -> Self;
     }
 
-    impl Float for f32 {
+    impl SealedFloat for f32 {
         #[inline]
         fn zero() -> Self {
             0.0
@@ -58,7 +58,7 @@ pub(crate) mod sealed {
         }
     }
 
-    impl Float for f64 {
+    impl SealedFloat for f64 {
         #[inline]
         fn zero() -> Self {
             0.0
@@ -93,9 +93,9 @@ pub(crate) mod sealed {
 /// Public trait bound for floating-point types used throughout `score-set`.
 ///
 /// Blanket-implemented for `f32` and `f64`. Sealed so downstream cannot add new impls.
-pub trait ScoreFloat: sealed::Float {}
+pub trait Float: sealed::SealedFloat {}
 
-impl<T: sealed::Float> ScoreFloat for T {}
+impl<T: sealed::SealedFloat> Float for T {}
 
 #[cfg(test)]
 mod tests_for_float;

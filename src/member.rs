@@ -1,4 +1,4 @@
-use crate::float::ScoreFloat;
+use crate::float::Float;
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 use witnessed::{WitnessExt, Witnessed};
 
@@ -8,7 +8,7 @@ use witnessed::{WitnessExt, Witnessed};
 
 /// Trait that maps raw member tuples to normalized member tuples.
 #[doc(hidden)]
-pub trait Members<T: ScoreFloat>: Sized {
+pub trait Members<T: Float>: Sized {
     /// The raw (pre-normalization) member tuple.
     type Raw;
 
@@ -33,12 +33,12 @@ pub trait Members<T: ScoreFloat>: Sized {
 /// A raw member: a strictly-positive weight paired with a metric.
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
-pub struct RawMember<T: ScoreFloat, M> {
+pub struct RawMember<T: Float, M> {
     pub(crate) weight: Witnessed<T, GtZero>,
     pub(crate) metric: M,
 }
 
-impl<T: ScoreFloat, M> RawMember<T, M> {
+impl<T: Float, M> RawMember<T, M> {
     /// Access the raw weight value.
     pub fn weight(&self) -> T {
         *self.weight
@@ -53,7 +53,7 @@ impl<T: ScoreFloat, M> RawMember<T, M> {
 /// Construct a `RawMember`, validating that `weight` is strictly positive.
 #[doc(hidden)]
 #[inline]
-pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> Result<RawMember<T, M>, &'static str> {
+pub fn raw_member<T: Float, M>(weight: T, metric: M) -> Result<RawMember<T, M>, &'static str> {
     let w = GtZero::witness(weight)?;
     Ok(RawMember { weight: w, metric })
 }
@@ -65,14 +65,14 @@ pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> Result<RawMember<T,
 /// A member of a [`MetricSet`](crate::MetricSet): a normalized weight paired
 /// with its metric.
 #[derive(Debug, Clone, Copy)]
-pub struct Member<T: ScoreFloat, M> {
+pub struct Member<T: Float, M> {
     /// The normalized weight.
     pub weight: Witnessed<T, NormalizedWeight>,
     /// The metric or operator.
     pub metric: M,
 }
 
-impl<T: ScoreFloat, M> Member<T, M> {
+impl<T: Float, M> Member<T, M> {
     /// Compute the contribution of a metric score.
     ///
     /// `contribute(score) = score × normalized_weight`

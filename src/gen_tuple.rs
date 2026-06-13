@@ -13,7 +13,7 @@ use witnessed::WitnessExt;
 
 // ---- arity 1 (hand-written: macro_rules cannot reliably produce 1-tuples) ----
 #[cfg(feature = "num-1")]
-impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
+impl<T: crate::Float, M0> crate::Members<T> for (crate::Member<T, M0>,) {
     type Raw = (crate::RawMember<T, M0>,);
 
     fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
@@ -37,7 +37,7 @@ impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
 /// Internal helper: implement `Members<T>` for a tuple of arity 2+.
 macro_rules! impl_members_for_tuple {
     ($($idx:tt $name:ident),+) => {
-        impl<T: $crate::ScoreFloat, $($name),+> $crate::Members<T>
+        impl<T: $crate::Float, $($name),+> $crate::Members<T>
             for ($($crate::Member<T, $name>,)+)
         {
             type Raw = ($($crate::RawMember<T, $name>,)+);

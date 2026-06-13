@@ -1,4 +1,4 @@
-use crate::float::ScoreFloat;
+use crate::float::Float;
 use crate::member::Members;
 use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
@@ -12,12 +12,12 @@ use core::marker::PhantomData;
 /// Construct via [`score_set!`](crate::score_set!) or
 /// [`ScoreSet::normalize`]. Call [`.score()`](ScoreSet::score) to enter the
 /// scoring stage.
-pub struct ScoreSet<T: ScoreFloat, Members> {
+pub struct ScoreSet<T: Float, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ScoreFloat, Members> ScoreSet<T, Members>
+impl<T: Float, Members> ScoreSet<T, Members>
 where
     Members: crate::Members<T>,
 {
@@ -51,12 +51,12 @@ where
 ///
 /// Call [`.by(closure)`](ScoreStage::by) to evaluate the set with an
 /// arbitrary composition of its members.
-pub struct ScoreStage<'a, T: ScoreFloat, Members> {
+pub struct ScoreStage<'a, T: Float, Members> {
     members: &'a Members,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
+impl<'a, T: Float, Members> ScoreStage<'a, T, Members> {
     /// Score the set using a user-provided closure.
     #[inline]
     pub fn by<F, R>(self, f: F) -> R

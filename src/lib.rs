@@ -45,7 +45,7 @@ mod set;
 mod value;
 
 // Public API
-pub use float::ScoreFloat;
+pub use float::Float;
 // score_set! is exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};

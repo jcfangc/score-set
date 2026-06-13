@@ -1,4 +1,4 @@
-use crate::float::ScoreFloat;
+use crate::float::Float;
 use witnessed::{WitnessExt, Witnessed};
 
 // ---------------------------------------------------------------------------
@@ -14,7 +14,7 @@ pub struct Value01;
 
 impl Value01 {
     /// Validate `v` and return a `Witnessed` credential.
-    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
+    pub fn witness<T: Float>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("Value01: value must be finite");
         }
@@ -34,7 +34,7 @@ pub struct GtZero;
 
 impl GtZero {
     /// Validate `v` and return a `Witnessed` credential.
-    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
+    pub fn witness<T: Float>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("GtZero: value must be finite");
         }
@@ -66,7 +66,7 @@ impl NormalizedWeight {
     /// Verify `value` is a member of a validated normalized set.
     ///
     /// Binary-searches the sorted `container`.
-    pub fn from_normalized_container<T: ScoreFloat>(
+    pub fn from_normalized_container<T: Float>(
         value: T,
         container: &Witnessed<Vec<T>, NormalizedContainer>,
     ) -> Result<Self, &'static str> {
@@ -95,9 +95,7 @@ pub struct NormalizedContainer;
 
 impl NormalizedContainer {
     /// Validate every value is finite, in `[0, 1]`, and the set sums to 1.
-    pub fn witness<T: ScoreFloat>(
-        weights: Vec<T>,
-    ) -> Result<Witnessed<Vec<T>, Self>, &'static str> {
+    pub fn witness<T: Float>(weights: Vec<T>) -> Result<Witnessed<Vec<T>, Self>, &'static str> {
         let mut sum = T::zero();
         let len = weights.len();
         for &w in &weights {
