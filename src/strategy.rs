@@ -48,5 +48,4 @@ where
 }
 
 #[cfg(test)]
-#[path = "tests_for_strategy.rs"]
 mod tests_for_strategy;

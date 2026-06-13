@@ -96,5 +96,4 @@ impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
 }
 
 #[cfg(test)]
-#[path = "tests_for_set.rs"]
 mod tests_for_set;

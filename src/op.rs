@@ -89,5 +89,4 @@ impl<T, I, F: Clone> Clone for Op<T, I, F> {
 }
 
 #[cfg(test)]
-#[path = "tests_for_op.rs"]
 mod tests_for_op;

@@ -24,7 +24,7 @@ cargo build                     # 构建库
 cargo test --locked             # 运行所有 Rust 测试（锁定依赖）
 cargo test -- <NAME>            # 按名称运行单个测试
 cargo clippy                    # 代码检查
-cargo fmt                       # 格式化代码
+cargo fmt -p score-set           # 格式化代码（workspace 需指定包）
 cargo run -p xtask -- gen --max 8  # 重新生成 gen_tuple.rs
 ```
 
@@ -50,23 +50,30 @@ uv sync                         # 安装依赖（添加依赖后使用）
 
 ## 模块与测试从属关系
 
-每个源文件声明自己的测试模块，不在 `lib.rs` 集中管理：
+每个源文件声明自己的测试模块，测试文件放在父目录下：
 
 ```
 src/
-  float.rs                # #[cfg(test)] #[path = "tests_for_float.rs"] mod tests_for_float;
-  tests_for_float.rs
-  value.rs                # #[cfg(test)] #[path = "tests_for_value.rs"] mod tests_for_value;
-  tests_for_value.rs
-  metric.rs               # #[cfg(test)] #[path = "tests_for_metric.rs"] mod tests_for_metric;
-  tests_for_metric.rs
-  op.rs                   # #[cfg(test)] #[path = "tests_for_op.rs"] mod tests_for_op;
-  tests_for_op.rs
-  member.rs               # #[cfg(test)] #[path = "tests_for_member.rs"] mod tests_for_member;
-  tests_for_member.rs
-  set.rs                  # #[cfg(test)] #[path = "tests_for_set.rs"] mod tests_for_set;
-  tests_for_set.rs
-  strategy.rs             # #[cfg(test)] #[path = "tests_for_strategy.rs"] mod tests_for_strategy;
-  tests_for_strategy.rs
+  float.rs                # #[cfg(test)] mod tests_for_float;
+  float/
+    tests_for_float.rs
+  value.rs                # #[cfg(test)] mod tests_for_value;
+  value/
+    tests_for_value.rs
+  metric.rs               # #[cfg(test)] mod tests_for_metric;
+  metric/
+    tests_for_metric.rs
+  op.rs                   # #[cfg(test)] mod tests_for_op;
+  op/
+    tests_for_op.rs
+  member.rs               # #[cfg(test)] mod tests_for_member;
+  member/
+    tests_for_member.rs
+  set.rs                  # #[cfg(test)] mod tests_for_set;
+  set/
+    tests_for_set.rs
+  strategy.rs             # #[cfg(test)] mod tests_for_strategy;
+  strategy/
+    tests_for_strategy.rs
   lab.rs                  # 共享测试辅助，声明在 lib.rs
 ```

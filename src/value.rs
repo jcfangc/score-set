@@ -268,5 +268,4 @@ impl<T: ScoreFloat> Score01<T> {
 }
 
 #[cfg(test)]
-#[path = "tests_for_value.rs"]
 mod tests_for_value;
