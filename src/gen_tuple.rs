@@ -2,17 +2,37 @@
 // ---------------------------------------------------------------------------
 // Per-arity implementations of the `Members` trait on flat member tuples.
 //
+// Arity 1 is hand-written (macro_rules cannot reliably produce 1-tuples).
+// Arity 2+ uses the `impl_members_for_tuple!` helper macro.
+//
 // Generated arities: 1–8 (default feature `level-8`).
-// Run `cargo run --bin xtask -- gen --max <N>` to regenerate for higher arities.
+// Run `cargo run -p xtask -- gen --max <N>` to regenerate for higher arities.
 // ---------------------------------------------------------------------------
 
-/// Internal helper: implement `Members<T>` for a tuple of the given arity.
+// ---- arity 1 (hand-written: macro_rules cannot reliably produce 1-tuples) ----
+#[cfg(feature = "num-1")]
+impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
+    type Raw = (crate::RawMember<T, M0>,);
+
+    fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
+        vec![raw.0.weight]
+    }
+
+    unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self {
+        (crate::Member {
+            weight: unsafe { crate::NormalizedWeight::witness_unchecked(normalized[0]) },
+            metric: raw.0.metric,
+        },)
+    }
+}
+
+/// Internal helper: implement `Members<T>` for a tuple of arity 2+.
 macro_rules! impl_members_for_tuple {
     ($($idx:tt $name:ident),+) => {
         impl<T: $crate::ScoreFloat, $($name),+> $crate::Members<T>
-            for ($($crate::Member<T, $name>),+,)
+            for ($($crate::Member<T, $name>,)+)
         {
-            type Raw = ($($crate::RawMember<T, $name>),+,);
+            type Raw = ($($crate::RawMember<T, $name>,)+);
 
             fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
                 vec![$(raw.$idx.weight),+]
@@ -26,16 +46,12 @@ macro_rules! impl_members_for_tuple {
                     $($crate::Member {
                         weight: unsafe { $crate::NormalizedWeight::witness_unchecked(normalized[$idx]) },
                         metric: raw.$idx.metric,
-                    }),+,
+                    },)+
                 )
             }
         }
     };
 }
-
-// ---- arity 1 ----
-#[cfg(feature = "num-1")]
-impl_members_for_tuple!(0 M0);
 
 // ---- arity 2 ----
 #[cfg(feature = "num-2")]

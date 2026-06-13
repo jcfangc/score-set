@@ -18,7 +18,7 @@
 macro_rules! score_set {
     ($($weight:expr => $metric:expr),+ $(,)?) => {{
         $crate::RawMetricSet::new((
-            $($crate::raw_member($weight, $metric)),+
+            $($crate::raw_member($weight, $metric),)+
         ))
     }};
 }
