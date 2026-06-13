@@ -1,16 +1,18 @@
 use crate::float::ScoreFloat;
 use crate::member::Members;
+use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
+use witnessed::WitnessExt;
 
 // ---------------------------------------------------------------------------
-// RawScoreSet — pre-aggregation
+// RawScoreSet — pre-normalization
 // ---------------------------------------------------------------------------
 
-/// Holds a tuple of [`RawMember`](crate::RawMember)s, ready for aggregation.
+/// Holds a tuple of [`RawMember`](crate::RawMember)s, ready for normalization.
 ///
 /// Produced by the [`score_set!`](crate::score_set!) macro. Call
-/// [`.aggregate(strategy)`](RawScoreSet::aggregate) to normalize weights and
-/// build a [`ScoreSet`].
+/// [`.normalize()`](RawScoreSet::normalize) to convert raw weights to
+/// normalized weights and build a [`ScoreSet`].
 pub struct RawScoreSet<RawMembers> {
     pub(crate) raw: RawMembers,
 }
@@ -22,21 +24,21 @@ impl<RawMembers> RawScoreSet<RawMembers> {
         Self { raw }
     }
 
-    /// Apply an aggregation strategy to normalize weights and produce a
-    /// [`ScoreSet`].
-    ///
-    /// The strategy receives the raw member tuple and returns a normalized one.
-    /// Use [`strategy::weighted_mean`](crate::strategy::weighted_mean) or
-    /// pass a custom closure.
-    pub fn aggregate<T, M, F>(self, strategy: F) -> Result<ScoreSet<T, M>, &'static str>
+    /// Normalize raw weights (divide by sum) and validate the resulting set,
+    /// producing a [`ScoreSet`].
+    pub fn normalize<T, M>(self) -> Result<ScoreSet<T, M>, &'static str>
     where
         T: ScoreFloat,
         M: Members<T, Raw = RawMembers>,
-        F: FnOnce(RawMembers) -> Result<M, &'static str>,
     {
-        let members = strategy(self.raw)?;
+        let raw_weights = M::extract_raw_weights(&self.raw);
+        let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
+        let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
+        let container = normalized
+            .witness()
+            .by(|w| NormalizedContainer::prove(w.iter().copied()))?;
         Ok(ScoreSet {
-            members,
+            members: M::from_raw_with_weights(self.raw, &container),
             _phantom: PhantomData,
         })
     }

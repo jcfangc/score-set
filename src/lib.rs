@@ -26,7 +26,7 @@
 //! let ms = score_set! {
 //!     2.0 => gc,
 //!     3.0 => len,
-//! }.aggregate(strategy::weighted_mean)?;
+//! }?.normalize()?;
 //!
 //! let dna = "ACGTACGT";
 //! let score = ms.score().by(|(gc, len)| {
@@ -43,7 +43,6 @@ mod member;
 mod metric;
 mod op;
 mod set;
-pub mod strategy;
 mod value;
 
 // Public API
