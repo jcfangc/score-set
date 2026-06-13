@@ -1,5 +1,5 @@
 use crate::float::ScoreFloat;
-use witnessed::Witnessed;
+use witnessed::{WitnessExt, Witnessed};
 
 // ---------------------------------------------------------------------------
 // Value01 — value in [0, 1], finite
@@ -7,22 +7,21 @@ use witnessed::Witnessed;
 
 /// Witness credential for a value validated to be finite and in `[0, 1]`.
 ///
-/// Use with `witnessed`:
 /// ```ignore
-/// let v = 0.5_f64.witness().by(|v| Value01::prove(*v))?;
+/// let v: Witnessed<f64, Value01> = Value01::witness(0.5)?;
 /// ```
 pub struct Value01;
 
 impl Value01 {
-    /// Validate `v` is finite and in `[0, 1]`, returning the credential.
-    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
+    /// Validate `v` and return a `Witnessed` credential.
+    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("Value01: value must be finite");
         }
         if v < T::zero() || v > T::one() {
             return Err("Value01: value must be in [0, 1]");
         }
-        Ok(Value01)
+        v.witness().by(|_| Ok(Value01))
     }
 }
 
@@ -34,44 +33,39 @@ impl Value01 {
 pub struct GtZero;
 
 impl GtZero {
-    /// Validate `v` is finite and > 0, returning the credential.
-    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
+    /// Validate `v` and return a `Witnessed` credential.
+    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("GtZero: value must be finite");
         }
         if v <= T::zero() {
             return Err("GtZero: value must be strictly positive");
         }
-        Ok(GtZero)
+        v.witness().by(|_| Ok(GtZero))
     }
 }
 
 // ---------------------------------------------------------------------------
-// NormalizedWeight — weight credential (type tag only)
+// NormalizedWeight — weight credential
 // ---------------------------------------------------------------------------
 
 /// Witness credential for a single normalized weight.
 ///
-/// Credentials are created via [`NormalizedWeight::from_normalized_container`]
-/// which returns a proving closure that binary-searches a validated,
-/// sorted container to verify membership.
+/// Created via [`NormalizedWeight::from_normalized_container`], which
+/// binary-searches a validated sorted container to confirm membership.
 ///
 /// ```ignore
-/// let set = weights.witness().by(|w| NormalizedContainer::prove(w.iter().copied()))?;
-/// let w = 0.3_f64.witness().by(NormalizedWeight::from_normalized_container(&set))?;
+/// let set = NormalizedContainer::witness(weights)?;
+/// let w = 0.3_f64.witness().by(
+///     |v| NormalizedWeight::from_normalized_container(*v, &set)
+/// )?;
 /// ```
 pub struct NormalizedWeight;
 
 impl NormalizedWeight {
-    /// Binary-search `container` for `value`. Returns the credential
-    /// tag if the value is a member of the validated normalized set.
+    /// Verify `value` is a member of a validated normalized set.
     ///
-    /// Use with `witnessed`'s `by()`:
-    /// ```ignore
-    /// let w = value.witness().by(
-    ///     |v| NormalizedWeight::from_normalized_container(*v, &container)
-    /// )?;
-    /// ```
+    /// Binary-searches the sorted `container`.
     pub fn from_normalized_container<T: ScoreFloat>(
         value: T,
         container: &Witnessed<Vec<T>, NormalizedContainer>,
@@ -95,30 +89,18 @@ impl NormalizedWeight {
 /// normalized weights (each in `[0, 1]`, sum to 1).
 ///
 /// ```ignore
-/// let set = weights.witness().by(
-///     |w| NormalizedContainer::prove(w.iter().copied())
-/// )?;
-/// let w = 0.3_f64.witness().by(
-///     |v| NormalizedWeight::from_normalized_container(*v, &set)
-/// )?;
+/// let set = NormalizedContainer::witness(vec![0.2, 0.3, 0.5])?;
 /// ```
 pub struct NormalizedContainer;
 
 impl NormalizedContainer {
     /// Validate every value is finite, in `[0, 1]`, and the set sums to 1.
-    ///
-    /// Use with `witnessed`:
-    /// ```ignore
-    /// let set = weights.witness().by(
-    ///     |w| NormalizedContainer::prove(w.iter().copied())
-    /// )?;
-    /// ```
-    pub fn prove<T: ScoreFloat>(
-        weights: impl IntoIterator<Item = T>,
-    ) -> Result<Self, &'static str> {
+    pub fn witness<T: ScoreFloat>(
+        weights: Vec<T>,
+    ) -> Result<Witnessed<Vec<T>, Self>, &'static str> {
         let mut sum = T::zero();
-        let mut len = 0_usize;
-        for w in weights {
+        let len = weights.len();
+        for &w in &weights {
             if !w.is_finite() {
                 return Err("NormalizedContainer: value must be finite");
             }
@@ -126,7 +108,6 @@ impl NormalizedContainer {
                 return Err("NormalizedContainer: value must be in [0, 1]");
             }
             sum = sum + w;
-            len += 1;
         }
         let diff = if sum > T::one() {
             sum - T::one()
@@ -137,7 +118,7 @@ impl NormalizedContainer {
         if diff > tol {
             return Err("NormalizedContainer: set must sum to 1");
         }
-        Ok(NormalizedContainer)
+        weights.witness().by(|_| Ok(NormalizedContainer))
     }
 }
 

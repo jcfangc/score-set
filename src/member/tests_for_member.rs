@@ -2,10 +2,7 @@ use crate::*;
 
 /// Create a validated normalized container with the given sorted weights.
 fn normalized_set(weights: Vec<f64>) -> Witnessed<Vec<f64>, NormalizedContainer> {
-    weights
-        .witness()
-        .by(|w| NormalizedContainer::prove(w.iter().copied()))
-        .unwrap()
+    NormalizedContainer::witness(weights).unwrap()
 }
 
 #[test]
@@ -17,7 +14,7 @@ fn raw_member_construction() {
 
 #[test]
 fn member_contribute() {
-    let v = 0.6_f64.witness().by(|v| Value01::prove(*v)).unwrap();
+    let v = Value01::witness(0.6_f64).unwrap();
     let container = normalized_set(vec![1.0]);
     let w = 1.0_f64
         .witness()
@@ -49,7 +46,7 @@ fn member_metric_access() {
 
 #[test]
 fn member_contribute_zero() {
-    let v = 1.0_f64.witness().by(|v| Value01::prove(*v)).unwrap();
+    let v = Value01::witness(1.0_f64).unwrap();
     let container = normalized_set(vec![0.0, 0.5, 0.5]);
     let w = 0.0_f64
         .witness()
@@ -66,7 +63,7 @@ fn member_contribute_zero() {
 
 #[test]
 fn member_contribute_one() {
-    let v = 1.0_f64.witness().by(|v| Value01::prove(*v)).unwrap();
+    let v = Value01::witness(1.0_f64).unwrap();
     let container = normalized_set(vec![0.5, 0.5]);
     let w = 0.5_f64
         .witness()

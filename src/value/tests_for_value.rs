@@ -2,48 +2,30 @@ use crate::*;
 
 #[test]
 fn value01_valid() {
-    assert!(0.0_f64.witness().by(|v| Value01::prove(*v)).is_ok());
-    assert!(0.5_f64.witness().by(|v| Value01::prove(*v)).is_ok());
-    assert!(1.0_f64.witness().by(|v| Value01::prove(*v)).is_ok());
+    assert!(Value01::witness(0.0_f64).is_ok());
+    assert!(Value01::witness(0.5_f64).is_ok());
+    assert!(Value01::witness(1.0_f64).is_ok());
 }
 
 #[test]
 fn value01_rejects_out_of_range() {
-    assert!((-0.1_f64).witness().by(|v| Value01::prove(*v)).is_err());
-    assert!(1.1_f64.witness().by(|v| Value01::prove(*v)).is_err());
-    assert!(f64::NAN.witness().by(|v| Value01::prove(*v)).is_err());
-    assert!(f64::INFINITY.witness().by(|v| Value01::prove(*v)).is_err());
+    assert!(Value01::witness(-0.1_f64).is_err());
+    assert!(Value01::witness(1.1_f64).is_err());
+    assert!(Value01::witness(f64::NAN).is_err());
+    assert!(Value01::witness(f64::INFINITY).is_err());
 }
 
 #[test]
-fn normalized_container_prove() {
-    assert!(
-        vec![0.2_f64, 0.3, 0.5]
-            .witness()
-            .by(|w| NormalizedContainer::prove(w.iter().copied()))
-            .is_ok()
-    );
-    assert!(
-        vec![0.2_f64, 0.3]
-            .witness()
-            .by(|w| NormalizedContainer::prove(w.iter().copied()))
-            .is_err()
-    );
-    assert!(
-        vec![1.2_f64, -0.2]
-            .witness()
-            .by(|w| NormalizedContainer::prove(w.iter().copied()))
-            .is_err()
-    );
+fn normalized_container_witness() {
+    assert!(NormalizedContainer::witness(vec![0.2_f64, 0.3, 0.5]).is_ok());
+    assert!(NormalizedContainer::witness(vec![0.2_f64, 0.3]).is_err());
+    assert!(NormalizedContainer::witness(vec![1.2_f64, -0.2]).is_err());
 }
 
 #[test]
 fn weighted_value_product() {
-    let container = vec![1.0_f64]
-        .witness()
-        .by(|w| NormalizedContainer::prove(w.iter().copied()))
-        .unwrap();
-    let v = 0.6_f64.witness().by(|v| Value01::prove(*v)).unwrap();
+    let container = NormalizedContainer::witness(vec![1.0_f64]).unwrap();
+    let v = Value01::witness(0.6_f64).unwrap();
     let w = 1.0_f64
         .witness()
         .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
@@ -54,11 +36,8 @@ fn weighted_value_product() {
 
 #[test]
 fn f32_support() {
-    assert!(0.5_f32.witness().by(|v| Value01::prove(*v)).is_ok());
-    let container = vec![0.25_f32, 0.25, 0.5]
-        .witness()
-        .by(|w| NormalizedContainer::prove(w.iter().copied()))
-        .unwrap();
+    assert!(Value01::witness(0.5_f32).is_ok());
+    let container = NormalizedContainer::witness(vec![0.25_f32, 0.25, 0.5]).unwrap();
     let nw = 0.25_f32
         .witness()
         .by(|v| NormalizedWeight::from_normalized_container(*v, &container))

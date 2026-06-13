@@ -34,9 +34,7 @@ impl<RawMembers> RawScoreSet<RawMembers> {
         let raw_weights = M::extract_raw_weights(&self.raw);
         let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
         let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
-        let container = normalized
-            .witness()
-            .by(|w| NormalizedContainer::prove(w.iter().copied()))?;
+        let container = NormalizedContainer::witness(normalized)?;
         Ok(ScoreSet {
             members: M::from_raw_with_weights(self.raw, &container),
             _phantom: PhantomData,

@@ -54,7 +54,7 @@ impl<T: ScoreFloat, M> RawMember<T, M> {
 /// Construct a `RawMember`, validating that `weight` is strictly positive.
 #[inline]
 pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> Result<RawMember<T, M>, &'static str> {
-    let w = weight.witness().by(|v| GtZero::prove(*v))?;
+    let w = GtZero::witness(weight)?;
     Ok(RawMember { weight: w, metric })
 }
 
