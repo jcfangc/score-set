@@ -13,13 +13,13 @@
 //!
 //! let gc = metric("gc")
 //!     .measure().by(|dna: &str| gc_ratio(dna))
-//!     .map01().by(|raw: &f64, _: &str| Value01::witness(*raw).unwrap())
+//!     .map01().by(|raw: &f64, _: &str| (*raw).witness().by(Value01::prove()).unwrap())
 //!     .build();
 //!
 //! let len = metric("len")
 //!     .measure().by(|len: usize| len)
 //!     .map01().by(|raw: &usize, _: usize| {
-//!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
+//!         ((*raw as f64 / 100.0).min(1.0)).witness().by(Value01::prove()).unwrap()
 //!     })
 //!     .build();
 //!
@@ -55,7 +55,7 @@ pub use op::{Op, op};
 pub use set::RawMetricSet;
 pub use set::{MetricSet, ScoreStage};
 pub use value::{Contribution, ContributionSum, NormalizedWeight, Score01, Value01, Weight};
-pub use witnessed::Witnessed;
+pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]
 mod lab;

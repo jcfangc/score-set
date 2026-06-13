@@ -9,6 +9,8 @@
 // Run `cargo run -p xtask -- gen --max <N>` to regenerate for higher arities.
 // ---------------------------------------------------------------------------
 
+use witnessed::WitnessExt;
+
 // ---- arity 1 (hand-written: macro_rules cannot reliably produce 1-tuples) ----
 #[cfg(feature = "num-1")]
 impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
@@ -20,7 +22,11 @@ impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
 
     unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self {
         (crate::Member {
-            weight: unsafe { crate::NormalizedWeight::witness_unchecked(normalized[0]) },
+            weight: unsafe {
+                normalized[0]
+                    .witness()
+                    .by_unchecked::<crate::NormalizedWeight>()
+            },
             metric: raw.0.metric,
         },)
     }
@@ -44,7 +50,9 @@ macro_rules! impl_members_for_tuple {
             ) -> Self {
                 (
                     $($crate::Member {
-                        weight: unsafe { $crate::NormalizedWeight::witness_unchecked(normalized[$idx]) },
+                        weight: unsafe {
+                            normalized[$idx].witness().by_unchecked::<$crate::NormalizedWeight>()
+                        },
                         metric: raw.$idx.metric,
                     },)+
                 )
