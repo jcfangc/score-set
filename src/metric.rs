@@ -79,6 +79,53 @@ impl<I, Raw, M> Map01Stage<I, Raw, M> {
     }
 }
 
+// Shape methods — available when Raw is the same float type as the Value01 output.
+
+impl<I, T: Float, M> Map01Stage<I, T, M> {
+    /// Identity: clamp raw value to `[0, 1]`.
+    pub fn identity(self) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        self.by(|raw: &T, _: &I| Value01::witness(raw.min(T::one()).max(T::zero())).unwrap())
+    }
+
+    /// Linear: `raw / max`, clamped to `[0, 1]`.
+    pub fn linear(self, max: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        self.by(move |raw: &T, _: &I| {
+            Value01::witness((*raw / max).min(T::one()).max(T::zero())).unwrap()
+        })
+    }
+
+    /// Sigmoid fitted to `[low, high]`.
+    ///
+    /// Automatically derives midpoint `x0 = (low + high) / 2` and steepness
+    /// `k = 2·ln(1/ε − 1) / (high − low)` where `ε = 10·epsilon`.
+    /// At `raw = low` output is ≈ ε, at `raw = high` ≈ 1−ε.
+    pub fn sigmoid(
+        self,
+        low: T,
+        high: T,
+    ) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
+        let two = T::from_f64(2.0);
+        let eps = T::from_f64(10.0) * T::epsilon();
+        let x0 = (low + high) / two;
+        let k = two * (T::one() / eps - T::one()).ln() / (high - low);
+        self.by(move |raw: &T, _: &I| {
+            let v = T::one() / (T::one() + (-k * (*raw - x0)).exp());
+            Value01::witness(v).unwrap()
+        })
+    }
+
+    /// Asymmetric Cauchy: `1 / (1 + (raw / half)^2)`, with independent
+    /// half-widths for the left (`raw < 0`) and right (`raw >= 0`) sides.
+    pub fn cauchy(self, left: T, right: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
+    {
+        self.by(move |raw: &T, _: &I| {
+            let h = if *raw < T::zero() { left } else { right };
+            let v = T::one() / (T::one() + (*raw / h) * (*raw / h));
+            Value01::witness(v).unwrap()
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Metric — the built scoring operator
 // ---------------------------------------------------------------------------
