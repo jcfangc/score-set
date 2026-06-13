@@ -27,31 +27,6 @@ impl Value01 {
 }
 
 // ---------------------------------------------------------------------------
-// Weight — raw non-negative weight, finite
-// ---------------------------------------------------------------------------
-
-/// Witness credential for a non-negative, finite weight value.
-///
-/// Use with `witnessed`:
-/// ```ignore
-/// let w = 2.0_f64.witness().by(|v| Weight::prove(*v))?;
-/// ```
-pub struct Weight;
-
-impl Weight {
-    /// Validate `v` is finite and non-negative, returning the credential.
-    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
-        if !v.is_finite() {
-            return Err("Weight: value must be finite");
-        }
-        if v < T::zero() {
-            return Err("Weight: value must be non-negative");
-        }
-        Ok(Weight)
-    }
-}
-
-// ---------------------------------------------------------------------------
 // NormalizedWeight — weight credential (type tag only)
 // ---------------------------------------------------------------------------
 

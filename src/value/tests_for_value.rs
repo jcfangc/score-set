@@ -16,17 +16,6 @@ fn value01_rejects_out_of_range() {
 }
 
 #[test]
-fn weight_valid() {
-    assert!(0.0_f64.witness().by(|v| Weight::prove(*v)).is_ok());
-    assert!(5.0_f64.witness().by(|v| Weight::prove(*v)).is_ok());
-}
-
-#[test]
-fn weight_rejects_negative() {
-    assert!((-1.0_f64).witness().by(|v| Weight::prove(*v)).is_err());
-}
-
-#[test]
 fn normalized_container_prove() {
     assert!(
         vec![0.2_f64, 0.3, 0.5]
@@ -66,7 +55,6 @@ fn weighted_value_product() {
 #[test]
 fn f32_support() {
     assert!(0.5_f32.witness().by(|v| Value01::prove(*v)).is_ok());
-    assert!(3.0_f32.witness().by(|v| Weight::prove(*v)).is_ok());
     let container = vec![0.25_f32, 0.25, 0.5]
         .witness()
         .by(|w| NormalizedContainer::prove(w.iter().copied()))
