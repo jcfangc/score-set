@@ -78,10 +78,35 @@ impl Weight {
 
 /// Witness credential for a single normalized weight.
 ///
-/// This is a pure type-level tag. Individual credentials can only be
-/// created through [`NormalizedContainer::witness_member`] after the
-/// containing set has been validated.
+/// Credentials are created via [`NormalizedWeight::from_normalized_container`]
+/// which returns a proving closure that binary-searches a validated,
+/// sorted container to verify membership.
+///
+/// ```ignore
+/// let set = weights.witness().by(NormalizedContainer::prove())?;
+/// let w = 0.3_f64.witness().by(NormalizedWeight::from_normalized_container(&set))?;
+/// ```
 pub struct NormalizedWeight;
+
+impl NormalizedWeight {
+    /// Return a proving closure that binary-searches `container` for the
+    /// value being witnessed. Only values found in the validated sorted
+    /// set receive a `NormalizedWeight` credential.
+    pub fn from_normalized_container<T: ScoreFloat>(
+        container: &Witnessed<Vec<T>, NormalizedContainer>,
+    ) -> impl Fn(&T) -> Result<Self, &'static str> + '_ {
+        |v| {
+            if container
+                .binary_search_by(|a| a.partial_cmp(v).unwrap_or(core::cmp::Ordering::Equal))
+                .is_ok()
+            {
+                Ok(NormalizedWeight)
+            } else {
+                Err("NormalizedWeight: value not found in validated set")
+            }
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // NormalizedContainer — validated set of normalized weights
@@ -90,13 +115,13 @@ pub struct NormalizedWeight;
 /// Witness credential for a container validated as a complete set of
 /// normalized weights (each in `[0, 1]`, sum to 1).
 ///
-/// Individual [`NormalizedWeight`] credentials can be extracted via
-/// [`witness_member`](NormalizedContainer::witness_member).
+/// Individual credentials are created via
+/// [`NormalizedWeight::from_normalized_container`], which binary-searches
+/// this validated container to verify membership.
 ///
 /// ```ignore
-/// let set: Witnessed<Vec<f64>, NormalizedContainer> =
-///     vec![0.2, 0.3, 0.5].witness().by(NormalizedContainer::prove())?;
-/// let w = set.witness_member(set[0]);
+/// let set = weights.witness().by(NormalizedContainer::prove())?;
+/// let w = 0.3_f64.witness().by(NormalizedWeight::from_normalized_container(&set))?;
 /// ```
 pub struct NormalizedContainer;
 
@@ -145,20 +170,6 @@ impl NormalizedContainer {
     /// `NormalizedWeight` construction.
     pub unsafe fn witness_member<T: ScoreFloat>(value: T) -> Witnessed<T, NormalizedWeight> {
         unsafe { value.witness().by_unchecked::<NormalizedWeight>() }
-    }
-}
-
-/// Extension trait for safely extracting [`NormalizedWeight`] credentials
-/// from a validated container.
-pub trait NormalizedContainerExt<T: ScoreFloat> {
-    /// Extract a single member as a `NormalizedWeight` credential.
-    fn witness_member(&self, value: T) -> Witnessed<T, NormalizedWeight>;
-}
-
-impl<T: ScoreFloat> NormalizedContainerExt<T> for Witnessed<Vec<T>, NormalizedContainer> {
-    fn witness_member(&self, value: T) -> Witnessed<T, NormalizedWeight> {
-        // SAFETY: self proves the container passed validate_set.
-        unsafe { NormalizedContainer::witness_member(value) }
     }
 }
 
