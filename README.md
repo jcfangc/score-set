@@ -1,5 +1,8 @@
 # score-set
 
+[![crates.io](https://img.shields.io/crates/v/score-set?label=crates.io)](https://crates.io/crates/score-set)
+[![Coverage](https://codecov.io/gh/jcfangc/score-set/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/score-set)
+
 A Rust library for building **static weighted scoring operator sets**. Declare a set of named metrics with weights, normalize at build time, score at runtime via a user-provided closure that freely injects inputs and context.
 
 ## Usage
