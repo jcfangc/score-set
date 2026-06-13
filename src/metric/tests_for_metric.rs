@@ -89,8 +89,20 @@ fn map01_cauchy() {
         .measure()
         .by(|v: &f64| *v)
         .map01()
-        .cauchy(1.0);
+        .cauchy(1.0, 1.0);
 
     let result = m.eval(&1.0);
     assert!((*result - 0.5).abs() < 1e-6);
+}
+
+#[test]
+fn map01_cauchy_asymmetric() {
+    let m = metric("cauchy-asym")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .cauchy(0.5, 2.0);
+
+    assert!((*m.eval(&-0.5) - 0.5).abs() < 1e-6);
+    assert!((*m.eval(&2.0) - 0.5).abs() < 1e-6);
 }
