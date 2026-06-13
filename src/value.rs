@@ -1,14 +1,19 @@
 use crate::float::ScoreFloat;
 use core::ops::Add;
-use witnessed::{WitnessExt, Witnessed};
+use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
 // Value01 — value in [0, 1], finite
 // ---------------------------------------------------------------------------
 
-/// Witness type for a value validated to be finite and in `[0, 1]`.
+/// Witness credential for a value validated to be finite and in `[0, 1]`.
 ///
-/// Use [`Value01::witness`] to construct a `Witnessed<T, Value01>`.
+/// This type is a ZST credential only. Construct a `Witnessed<T, Value01>`
+/// by passing [`Value01::prove`] to `witnessed`'s validation framework:
+///
+/// ```ignore
+/// let v: Witnessed<f64, Value01> = 0.5.witness().by(Value01::prove())?;
+/// ```
 pub struct Value01;
 
 impl Value01 {
@@ -23,19 +28,16 @@ impl Value01 {
         Ok(())
     }
 
-    /// Construct a `Witnessed<T, Value01>` by validating `v`.
-    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
-        Self::validate(v)?;
-        v.witness().by(|_| Ok(Value01))
-    }
-
-    /// Construct a `Witnessed<T, Value01>` without validation.
+    /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
     ///
-    /// # Safety
-    ///
-    /// The caller must ensure `v` is finite and in `[0, 1]`.
-    pub unsafe fn witness_unchecked<T: ScoreFloat>(v: T) -> Witnessed<T, Self> {
-        unsafe { v.witness().by_unchecked::<Self>() }
+    /// ```ignore
+    /// let v = 0.5_f64.witness().by(Value01::prove())?;
+    /// ```
+    pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
+        |v| {
+            Self::validate(*v)?;
+            Ok(Value01)
+        }
     }
 }
 
@@ -43,9 +45,14 @@ impl Value01 {
 // Weight — raw non-negative weight, finite
 // ---------------------------------------------------------------------------
 
-/// Witness type for a non-negative, finite weight value.
+/// Witness credential for a non-negative, finite weight value.
 ///
-/// Use [`Weight::witness`] to construct a `Witnessed<T, Weight>`.
+/// This type is a ZST credential only. Construct a `Witnessed<T, Weight>`
+/// by passing [`Weight::prove`] to `witnessed`'s validation framework:
+///
+/// ```ignore
+/// let w: Witnessed<f64, Weight> = 2.0.witness().by(Weight::prove())?;
+/// ```
 pub struct Weight;
 
 impl Weight {
@@ -60,10 +67,16 @@ impl Weight {
         Ok(())
     }
 
-    /// Construct a `Witnessed<T, Weight>` by validating `v`.
-    pub fn witness<T: ScoreFloat>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
-        Self::validate(v)?;
-        v.witness().by(|_| Ok(Weight))
+    /// Return a proving closure for use with [`WitnessExt::by`](witnessed::WitnessExt).
+    ///
+    /// ```ignore
+    /// let w = 2.0_f64.witness().by(Weight::prove())?;
+    /// ```
+    pub fn prove<T: ScoreFloat>() -> impl Fn(&T) -> Result<Self, &'static str> {
+        |v| {
+            Self::validate(*v)?;
+            Ok(Weight)
+        }
     }
 }
 
@@ -71,14 +84,21 @@ impl Weight {
 // NormalizedWeight — weight in [0, 1], belonging to a set that sums to 1
 // ---------------------------------------------------------------------------
 
-/// Witness type for a normalized weight.
+/// Witness credential for a normalized weight.
 ///
 /// A normalized weight is individually in `[0, 1]`, finite, and collectively
 /// (as a member of a set) sums to 1.0 across the entire set.
 ///
 /// Because the "sums-to-1" property cannot be verified from a single value,
 /// use [`NormalizedWeight::validate_set`] to validate the entire collection
-/// before calling [`NormalizedWeight::witness_unchecked`] on each member.
+/// before constructing each member via `witnessed`'s unchecked path:
+///
+/// ```ignore
+/// NormalizedWeight::validate_set(&weights)?;
+/// // SAFETY: set validated just above
+/// let w: Witnessed<f64, NormalizedWeight> =
+///     unsafe { weight.witness().by_unchecked::<NormalizedWeight>() };
+/// ```
 pub struct NormalizedWeight;
 
 impl NormalizedWeight {
@@ -118,17 +138,6 @@ impl NormalizedWeight {
             return Err("NormalizedWeight: set must sum to 1");
         }
         Ok(())
-    }
-
-    /// Construct a `Witnessed<T, NormalizedWeight>` without per-value validation.
-    ///
-    /// # Safety
-    ///
-    /// The caller must have validated the entire set via
-    /// [`validate_set`](Self::validate_set) and verified the individual value
-    /// belongs to that valid set.
-    pub unsafe fn witness_unchecked<T: ScoreFloat>(v: T) -> Witnessed<T, Self> {
-        unsafe { v.witness().by_unchecked::<Self>() }
     }
 }
 
