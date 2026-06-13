@@ -36,12 +36,12 @@ fn normalized_weight_validates_set() {
 #[test]
 fn contribution_arithmetic() {
     let v = 0.6_f64.witness().by(Value01::prove()).unwrap();
-    let w = unsafe { 0.5_f64.witness().by_unchecked::<NormalizedWeight>() };
+    let w = unsafe { NormalizedContainer::witness_member(0.5_f64) };
     let c = Contribution::new(v, w);
     assert!((c.into_inner() - 0.3).abs() < 1e-10);
 
     let v2 = 0.4_f64.witness().by(Value01::prove()).unwrap();
-    let w2 = unsafe { 0.5_f64.witness().by_unchecked::<NormalizedWeight>() };
+    let w2 = unsafe { NormalizedContainer::witness_member(0.5_f64) };
     let c2 = Contribution::new(v2, w2);
 
     let sum = c + c2;
@@ -59,6 +59,6 @@ fn score01_construction() {
 fn f32_support() {
     assert!(0.5_f32.witness().by(Value01::prove()).is_ok());
     assert!(3.0_f32.witness().by(Weight::prove()).is_ok());
-    let nw = unsafe { 0.25_f32.witness().by_unchecked::<NormalizedWeight>() };
+    let nw = unsafe { NormalizedContainer::witness_member(0.25_f32) };
     assert!((*nw - 0.25_f32).abs() < 1e-7);
 }

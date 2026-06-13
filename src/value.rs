@@ -1,6 +1,6 @@
 use crate::float::ScoreFloat;
 use core::ops::Add;
-use witnessed::Witnessed;
+use witnessed::{WitnessExt, Witnessed};
 
 // ---------------------------------------------------------------------------
 // Value01 — value in [0, 1], finite
@@ -89,7 +89,7 @@ impl Weight {
 /// NormalizedWeight::validate_set(&weights)?;
 /// // SAFETY: set validated just above
 /// let w: Witnessed<f64, NormalizedWeight> =
-///     unsafe { weight.witness().by_unchecked::<NormalizedWeight>() };
+///     unsafe { NormalizedContainer::witness_member(weight) };
 /// ```
 pub struct NormalizedWeight;
 
@@ -122,6 +122,62 @@ impl NormalizedWeight {
             return Err("NormalizedWeight: set must sum to 1");
         }
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// NormalizedContainer — validated set of normalized weights
+// ---------------------------------------------------------------------------
+
+/// Witness credential for a container whose elements are validated as a
+/// complete set of normalized weights (each in `[0, 1]`, sum to 1).
+///
+/// Once a container holds this credential, individual
+/// [`NormalizedWeight`] credentials can be extracted safely via
+/// [`NormalizedContainerExt::witness_member`].
+///
+/// ```ignore
+/// let set: Witnessed<Vec<f64>, NormalizedContainer> =
+///     vec![0.2, 0.3, 0.5].witness().by(NormalizedContainer::prove())?;
+/// let w = set.witness_member(set[0]);
+/// ```
+pub struct NormalizedContainer;
+
+impl NormalizedContainer {
+    /// Return a proving closure that validates a `Vec<T>` as a normalized
+    /// set (all values in `[0, 1]`, sum to 1).
+    pub fn prove<T: ScoreFloat>() -> impl Fn(&Vec<T>) -> Result<Self, &'static str> {
+        |weights| {
+            NormalizedWeight::validate_set(weights)?;
+            Ok(NormalizedContainer)
+        }
+    }
+
+    /// Construct a single `NormalizedWeight` credential.
+    ///
+    /// # Safety
+    ///
+    /// The value must belong to a set that has passed
+    /// [`NormalizedWeight::validate_set`].
+    ///
+    /// This is the single `unsafe` bottleneck for individual
+    /// `NormalizedWeight` construction. All callers route through here.
+    pub unsafe fn witness_member<T: ScoreFloat>(value: T) -> Witnessed<T, NormalizedWeight> {
+        unsafe { value.witness().by_unchecked::<NormalizedWeight>() }
+    }
+}
+
+/// Extension trait for safely extracting [`NormalizedWeight`] credentials
+/// from a validated container.
+pub trait NormalizedContainerExt<T: ScoreFloat> {
+    /// Extract a single member as a `NormalizedWeight` credential.
+    fn witness_member(&self, value: T) -> Witnessed<T, NormalizedWeight>;
+}
+
+impl<T: ScoreFloat> NormalizedContainerExt<T> for Witnessed<Vec<T>, NormalizedContainer> {
+    fn witness_member(&self, value: T) -> Witnessed<T, NormalizedWeight> {
+        // SAFETY: self proves the container passed validate_set.
+        unsafe { NormalizedContainer::witness_member(value) }
     }
 }
 
