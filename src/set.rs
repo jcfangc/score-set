@@ -4,59 +4,36 @@ use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
 
 // ---------------------------------------------------------------------------
-// RawScoreSet — pre-normalization
+// ScoreSet — normalized weighted set of scoring operators
 // ---------------------------------------------------------------------------
 
-/// Holds a tuple of [`RawMember`](crate::RawMember)s, ready for normalization.
+/// A static weighted set of scoring operators with normalized weights.
 ///
-/// Produced by the [`score_set!`](crate::score_set!) macro. Call
-/// [`.normalize()`](RawScoreSet::normalize) to convert raw weights to
-/// normalized weights and build a [`ScoreSet`].
-pub struct RawScoreSet<RawMembers> {
-    pub(crate) raw: RawMembers,
-}
-
-impl<RawMembers> RawScoreSet<RawMembers> {
-    /// Create a new `RawScoreSet` from a tuple of `RawMember`s.
-    #[inline]
-    pub fn new(raw: RawMembers) -> Self {
-        Self { raw }
-    }
-
-    /// Normalize raw weights (divide by sum) and validate the resulting set,
-    /// producing a [`ScoreSet`].
-    pub fn normalize<T, M>(self) -> Result<ScoreSet<T, M>, &'static str>
-    where
-        T: ScoreFloat,
-        M: Members<T, Raw = RawMembers>,
-    {
-        let raw_weights = M::extract_raw_weights(&self.raw);
-        let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
-        let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
-        let container = NormalizedContainer::witness(normalized)?;
-        Ok(ScoreSet {
-            members: M::from_raw_with_weights(self.raw, &container),
-            _phantom: PhantomData,
-        })
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ScoreSet — post-aggregation, ready for scoring
-// ---------------------------------------------------------------------------
-
-/// A static weighted set of scoring operators.
-///
-/// Holds a flat tuple of [`Member`](crate::Member)s with normalized weights.
-/// Call [`.score()`](ScoreSet::score) to enter the scoring stage.
+/// Construct via [`score_set!`](crate::score_set!) or
+/// [`ScoreSet::normalize`]. Call [`.score()`](ScoreSet::score) to enter the
+/// scoring stage.
 pub struct ScoreSet<T: ScoreFloat, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ScoreFloat, Members> ScoreSet<T, Members> {
-    /// Enter the scoring stage, returning a [`ScoreStage`] bound to this set's
-    /// members.
+impl<T: ScoreFloat, Members> ScoreSet<T, Members>
+where
+    Members: crate::Members<T>,
+{
+    /// Normalize raw weights and validate the resulting set.
+    pub fn normalize(raw: Members::Raw) -> Result<Self, &'static str> {
+        let raw_weights = Members::extract_raw_weights(&raw);
+        let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
+        let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
+        let container = NormalizedContainer::witness(normalized)?;
+        Ok(ScoreSet {
+            members: Members::from_raw_with_weights(raw, &container),
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Enter the scoring stage.
     #[inline]
     pub fn score(&self) -> ScoreStage<'_, T, Members> {
         ScoreStage {
@@ -81,10 +58,6 @@ pub struct ScoreStage<'a, T: ScoreFloat, Members> {
 
 impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
     /// Score the set using a user-provided closure.
-    ///
-    /// The closure receives a reference to the member tuple and is free to
-    /// call each member's metric with whatever input shape it needs, combine
-    /// contributions, and return a final result.
     #[inline]
     pub fn by<F, R>(self, f: F) -> R
     where

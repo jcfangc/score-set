@@ -49,7 +49,7 @@ pub use float::ScoreFloat;
 // score_set! is exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
-pub use set::{RawScoreSet, ScoreSet, ScoreStage};
+pub use set::{ScoreSet, ScoreStage};
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
