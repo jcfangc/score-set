@@ -31,9 +31,9 @@ fn finite_check() {
 }
 
 #[test]
-fn from_f64_roundtrip() {
-    assert_eq!(f64::from_f64(0.5).into_f64(), 0.5);
-    assert!((f32::from_f64(0.5).into_f64() - 0.5).abs() < 1e-6);
+fn from_f64() {
+    assert_eq!(f64::from_f64(0.5), 0.5);
+    assert!((f32::from_f64(0.5) - 0.5_f32).abs() < 1e-6);
 }
 
 #[test]

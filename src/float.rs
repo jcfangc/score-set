@@ -21,9 +21,7 @@ pub(crate) mod sealed {
         fn zero() -> Self;
         fn one() -> Self;
         fn is_finite(self) -> bool;
-        fn epsilon() -> Self;
         fn from_f64(v: f64) -> Self;
-        fn into_f64(self) -> f64;
         fn abs(self) -> Self;
         fn min(self, other: Self) -> Self;
         fn max(self, other: Self) -> Self;
@@ -43,16 +41,8 @@ pub(crate) mod sealed {
             f32::is_finite(self)
         }
         #[inline]
-        fn epsilon() -> Self {
-            f32::EPSILON
-        }
-        #[inline]
         fn from_f64(v: f64) -> Self {
             v as f32
-        }
-        #[inline]
-        fn into_f64(self) -> f64 {
-            self as f64
         }
         #[inline]
         fn abs(self) -> Self {
@@ -82,16 +72,8 @@ pub(crate) mod sealed {
             f64::is_finite(self)
         }
         #[inline]
-        fn epsilon() -> Self {
-            f64::EPSILON
-        }
-        #[inline]
         fn from_f64(v: f64) -> Self {
             v
-        }
-        #[inline]
-        fn into_f64(self) -> f64 {
-            self
         }
         #[inline]
         fn abs(self) -> Self {

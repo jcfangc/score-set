@@ -2,7 +2,6 @@ use crate::float::ScoreFloat;
 use crate::member::Members;
 use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
-use witnessed::WitnessExt;
 
 // ---------------------------------------------------------------------------
 // RawScoreSet — pre-normalization
