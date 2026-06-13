@@ -21,12 +21,12 @@ pub trait Members<T: ScoreFloat>: Sized {
     /// normalized weights.
     ///
     /// The `normalized` slice must have been validated via
-    /// [`NormalizedWeight::validate_set`](crate::NormalizedWeight::validate_set).
+    /// [`NormalizedContainer::validate_set`](crate::NormalizedContainer::validate_set).
     ///
     /// # Safety
     ///
     /// The full set of normalized weights must have passed
-    /// [`NormalizedWeight::validate_set`](crate::NormalizedWeight::validate_set).
+    /// [`NormalizedContainer::validate_set`](crate::NormalizedContainer::validate_set).
     unsafe fn from_raw_with_weights(raw: Self::Raw, normalized: &[T]) -> Self;
 }
 

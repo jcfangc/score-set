@@ -73,68 +73,25 @@ impl Weight {
 }
 
 // ---------------------------------------------------------------------------
-// NormalizedWeight — weight in [0, 1], belonging to a set that sums to 1
+// NormalizedWeight — weight credential (type tag only)
 // ---------------------------------------------------------------------------
 
-/// Witness credential for a normalized weight.
+/// Witness credential for a single normalized weight.
 ///
-/// A normalized weight is individually in `[0, 1]`, finite, and collectively
-/// (as a member of a set) sums to 1.0 across the entire set.
-///
-/// Because the "sums-to-1" property cannot be verified from a single value,
-/// use [`NormalizedWeight::validate_set`] to validate the entire collection
-/// before constructing each member via `witnessed`'s unchecked path:
-///
-/// ```ignore
-/// NormalizedWeight::validate_set(&weights)?;
-/// // SAFETY: set validated just above
-/// let w: Witnessed<f64, NormalizedWeight> =
-///     unsafe { NormalizedContainer::witness_member(weight) };
-/// ```
+/// This is a pure type-level tag. Individual credentials can only be
+/// created through [`NormalizedContainer::witness_member`] after the
+/// containing set has been validated.
 pub struct NormalizedWeight;
-
-impl NormalizedWeight {
-    /// Validate that a complete set of normalized weights satisfies invariants.
-    ///
-    /// Checks every value is finite and in `[0, 1]`, and that the set sums
-    /// to 1.0 (within floating-point tolerance). This is the only public
-    /// validation entry point — individual `NormalizedWeight` credentials
-    /// can only be constructed via `by_unchecked` after this passes.
-    pub fn validate_set<T: ScoreFloat>(weights: &[T]) -> Result<(), &'static str> {
-        let mut sum = T::zero();
-        for &w in weights {
-            if !w.is_finite() {
-                return Err("NormalizedWeight: value must be finite");
-            }
-            if w < T::zero() || w > T::one() {
-                return Err("NormalizedWeight: value must be in [0, 1]");
-            }
-            sum = sum + w;
-        }
-        let diff = if sum > T::one() {
-            sum - T::one()
-        } else {
-            T::one() - sum
-        };
-        // Use a generous tolerance for floating-point accumulation
-        let tol = T::from_f64(1e-9) * T::from_f64(weights.len() as f64).max(T::one());
-        if diff > tol {
-            return Err("NormalizedWeight: set must sum to 1");
-        }
-        Ok(())
-    }
-}
 
 // ---------------------------------------------------------------------------
 // NormalizedContainer — validated set of normalized weights
 // ---------------------------------------------------------------------------
 
-/// Witness credential for a container whose elements are validated as a
-/// complete set of normalized weights (each in `[0, 1]`, sum to 1).
+/// Witness credential for a container validated as a complete set of
+/// normalized weights (each in `[0, 1]`, sum to 1).
 ///
-/// Once a container holds this credential, individual
-/// [`NormalizedWeight`] credentials can be extracted safely via
-/// [`NormalizedContainerExt::witness_member`].
+/// Individual [`NormalizedWeight`] credentials can be extracted via
+/// [`witness_member`](NormalizedContainer::witness_member).
 ///
 /// ```ignore
 /// let set: Witnessed<Vec<f64>, NormalizedContainer> =
@@ -144,11 +101,35 @@ impl NormalizedWeight {
 pub struct NormalizedContainer;
 
 impl NormalizedContainer {
-    /// Return a proving closure that validates a `Vec<T>` as a normalized
-    /// set (all values in `[0, 1]`, sum to 1).
+    /// Validate that a slice satisfies normalized-weight invariants:
+    /// every value finite and in `[0, 1]`, set sums to 1.
+    pub fn validate_set<T: ScoreFloat>(weights: &[T]) -> Result<(), &'static str> {
+        let mut sum = T::zero();
+        for &w in weights {
+            if !w.is_finite() {
+                return Err("NormalizedContainer: value must be finite");
+            }
+            if w < T::zero() || w > T::one() {
+                return Err("NormalizedContainer: value must be in [0, 1]");
+            }
+            sum = sum + w;
+        }
+        let diff = if sum > T::one() {
+            sum - T::one()
+        } else {
+            T::one() - sum
+        };
+        let tol = T::from_f64(1e-9) * T::from_f64(weights.len() as f64).max(T::one());
+        if diff > tol {
+            return Err("NormalizedContainer: set must sum to 1");
+        }
+        Ok(())
+    }
+
+    /// Return a proving closure for use with `witnessed`.
     pub fn prove<T: ScoreFloat>() -> impl Fn(&Vec<T>) -> Result<Self, &'static str> {
         |weights| {
-            NormalizedWeight::validate_set(weights)?;
+            Self::validate_set(weights)?;
             Ok(NormalizedContainer)
         }
     }
@@ -157,11 +138,11 @@ impl NormalizedContainer {
     ///
     /// # Safety
     ///
-    /// The value must belong to a set that has passed
-    /// [`NormalizedWeight::validate_set`].
+    /// The value must belong to a set that passed
+    /// [`validate_set`](Self::validate_set).
     ///
     /// This is the single `unsafe` bottleneck for individual
-    /// `NormalizedWeight` construction. All callers route through here.
+    /// `NormalizedWeight` construction.
     pub unsafe fn witness_member<T: ScoreFloat>(value: T) -> Witnessed<T, NormalizedWeight> {
         unsafe { value.witness().by_unchecked::<NormalizedWeight>() }
     }

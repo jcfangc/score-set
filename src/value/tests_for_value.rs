@@ -28,9 +28,9 @@ fn weight_rejects_negative() {
 
 #[test]
 fn normalized_weight_validates_set() {
-    assert!(NormalizedWeight::validate_set(&[0.2_f64, 0.3, 0.5]).is_ok());
-    assert!(NormalizedWeight::validate_set(&[0.2_f64, 0.3]).is_err());
-    assert!(NormalizedWeight::validate_set(&[1.2_f64, -0.2]).is_err());
+    assert!(NormalizedContainer::validate_set(&[0.2_f64, 0.3, 0.5]).is_ok());
+    assert!(NormalizedContainer::validate_set(&[0.2_f64, 0.3]).is_err());
+    assert!(NormalizedContainer::validate_set(&[1.2_f64, -0.2]).is_err());
 }
 
 #[test]
