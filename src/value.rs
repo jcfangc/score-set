@@ -27,6 +27,26 @@ impl Value01 {
 }
 
 // ---------------------------------------------------------------------------
+// GtZero — strictly greater than zero, finite
+// ---------------------------------------------------------------------------
+
+/// Witness credential for a value validated to be finite and strictly > 0.
+pub struct GtZero;
+
+impl GtZero {
+    /// Validate `v` is finite and > 0, returning the credential.
+    pub fn prove<T: ScoreFloat>(v: T) -> Result<Self, &'static str> {
+        if !v.is_finite() {
+            return Err("GtZero: value must be finite");
+        }
+        if v <= T::zero() {
+            return Err("GtZero: value must be strictly positive");
+        }
+        Ok(GtZero)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // NormalizedWeight — weight credential (type tag only)
 // ---------------------------------------------------------------------------
 

@@ -10,9 +10,9 @@ fn normalized_set(weights: Vec<f64>) -> Witnessed<Vec<f64>, NormalizedContainer>
 
 #[test]
 fn raw_member_construction() {
-    let rm = raw_member(2.5_f64, "metric-data");
-    assert!((rm.weight - 2.5).abs() < 1e-10);
-    assert_eq!(rm.metric, "metric-data");
+    let rm = raw_member(2.5_f64, "metric-data").unwrap();
+    assert!((*rm.weight - 2.5).abs() < 1e-10);
+    assert_eq!(rm.metric(), &"metric-data");
 }
 
 #[test]

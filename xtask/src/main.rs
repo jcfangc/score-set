@@ -58,7 +58,7 @@ impl<T: crate::ScoreFloat, M0> crate::Members<T> for (crate::Member<T, M0>,) {
     type Raw = (crate::RawMember<T, M0>,);
 
     fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
-        vec![raw.0.weight]
+        vec![*raw.0.weight]
     }
 
     fn from_raw_with_weights(
@@ -93,7 +93,7 @@ macro_rules! impl_members_for_tuple {
             type Raw = ($($crate::RawMember<T, $name>,)+);
 
             fn extract_raw_weights(raw: &Self::Raw) -> Vec<T> {
-                vec![$(raw.$idx.weight),+]
+                vec![$(*raw.$idx.weight),+]
             }
 
             fn from_raw_with_weights(

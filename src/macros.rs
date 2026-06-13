@@ -16,9 +16,11 @@
 /// ```
 #[macro_export]
 macro_rules! score_set {
-    ($($weight:expr => $metric:expr),+ $(,)?) => {{
-        $crate::RawScoreSet::new((
-            $($crate::raw_member($weight, $metric),)+
-        ))
-    }};
+    ($($weight:expr => $metric:expr),+ $(,)?) => {
+        (|| -> Result<_, &'static str> {
+            Ok($crate::RawScoreSet::new((
+                $($crate::raw_member($weight, $metric)?,)+
+            )))
+        })()
+    };
 }

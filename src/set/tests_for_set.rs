@@ -2,7 +2,7 @@ use crate::lab::gc_ratio;
 use crate::*;
 
 #[test]
-fn readme_example() {
+fn readme_example() -> Result<(), &'static str> {
     let gc = metric("gc")
         .measure()
         .by(|dna: &str| gc_ratio(dna))
@@ -25,9 +25,8 @@ fn readme_example() {
     let ms = score_set! {
         2.0 => gc,
         3.0 => len,
-    }
-    .aggregate(strategy::weighted_mean)
-    .unwrap();
+    }?
+    .aggregate(strategy::weighted_mean)?;
 
     let dna = "ACGTACGT";
 
@@ -38,4 +37,5 @@ fn readme_example() {
     let inner = score;
     assert!(inner >= 0.0 && inner <= 1.0);
     assert!((inner - 0.248).abs() < 0.001);
+    Ok(())
 }

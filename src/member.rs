@@ -1,6 +1,6 @@
 use crate::float::ScoreFloat;
-use crate::value::{NormalizedContainer, NormalizedWeight, Value01};
-use witnessed::Witnessed;
+use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
+use witnessed::{WitnessExt, Witnessed};
 
 // ---------------------------------------------------------------------------
 // Members trait — maps raw tuple to normalized tuple
@@ -32,19 +32,30 @@ pub trait Members<T: ScoreFloat>: Sized {
 // RawMember — weight + metric before normalization
 // ---------------------------------------------------------------------------
 
-/// A raw member: an un-normalized weight paired with a metric.
+/// A raw member: a strictly-positive weight paired with a metric.
 #[derive(Debug, Clone, Copy)]
 pub struct RawMember<T: ScoreFloat, M> {
-    /// The raw (user-declared) weight.
-    pub weight: T,
-    /// The metric or operator.
-    pub metric: M,
+    pub(crate) weight: Witnessed<T, GtZero>,
+    pub(crate) metric: M,
 }
 
-/// Convenience constructor for `RawMember`.
+impl<T: ScoreFloat, M> RawMember<T, M> {
+    /// Access the raw weight value.
+    pub fn weight(&self) -> T {
+        *self.weight
+    }
+
+    /// Access the metric.
+    pub fn metric(&self) -> &M {
+        &self.metric
+    }
+}
+
+/// Construct a `RawMember`, validating that `weight` is strictly positive.
 #[inline]
-pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> RawMember<T, M> {
-    RawMember { weight, metric }
+pub fn raw_member<T: ScoreFloat, M>(weight: T, metric: M) -> Result<RawMember<T, M>, &'static str> {
+    let w = weight.witness().by(|v| GtZero::prove(*v))?;
+    Ok(RawMember { weight: w, metric })
 }
 
 // ---------------------------------------------------------------------------

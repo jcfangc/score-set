@@ -53,7 +53,7 @@ pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use op::{Op, op};
 pub use set::{RawScoreSet, ScoreSet, ScoreStage};
-pub use value::{NormalizedContainer, NormalizedWeight, Value01};
+pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]
