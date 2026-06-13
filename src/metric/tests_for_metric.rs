@@ -5,13 +5,13 @@ use crate::*;
 fn metric_builder_eval() {
     let m = metric("gc")
         .measure()
-        .by(|dna: &str| gc_ratio(dna))
+        .by(|dna: &&str| gc_ratio(dna))
         .map01()
-        .by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap());
+        .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 
     assert_eq!(m.name(), "gc");
 
-    let result = m.eval("ACGT"); // gc = 2/4 = 0.5
+    let result = m.eval(&"ACGT");
     assert!((*result - 0.5).abs() < 1e-10);
 }
 
@@ -19,11 +19,11 @@ fn metric_builder_eval() {
 fn metric_with_empty_input() {
     let m = metric("gc-empty")
         .measure()
-        .by(|dna: &str| gc_ratio(dna))
+        .by(|dna: &&str| gc_ratio(dna))
         .map01()
-        .by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap());
+        .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 
-    let result = m.eval(""); // gc = 0
+    let result = m.eval(&"");
     assert!((*result - 0.0).abs() < 1e-10);
 }
 
@@ -31,15 +31,17 @@ fn metric_with_empty_input() {
 fn metric_usize_input() {
     let m = metric("len")
         .measure()
-        .by(|len: usize| len)
+        .by(|len: &usize| *len)
         .map01()
-        .by(|raw: &usize, _: usize| Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap());
+        .by(|raw: &usize, _: &usize| {
+            Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
+        });
 
     assert_eq!(m.name(), "len");
 
-    let result = m.eval(50); // 50/100 = 0.5
+    let result = m.eval(&50);
     assert!((*result - 0.5).abs() < 1e-10);
 
-    let result2 = m.eval(200); // capped at 1.0
+    let result2 = m.eval(&200);
     assert!((*result2 - 1.0).abs() < 1e-10);
 }

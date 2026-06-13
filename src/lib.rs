@@ -12,16 +12,14 @@
 //! use score_set::*;
 //!
 //! let gc = metric("gc")
-//!     .measure().by(|dna: &str| gc_ratio(dna))
-//!     .map01().by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap())
-//!     ;
+//!     .measure().by(|dna: &&str| gc_ratio(dna))
+//!     .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 //!
 //! let len = metric("len")
-//!     .measure().by(|len: usize| len)
-//!     .map01().by(|raw: &usize, _: usize| {
-//!         ((*raw as f64 / Value01::witness(100.0).min(1.0))).unwrap()
-//!     })
-//!     ;
+//!     .measure().by(|len: &usize| *len)
+//!     .map01().by(|raw: &usize, _: &usize| {
+//!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
+//!     });
 //!
 //! let ms = score_set! {
 //!     2.0 => gc,
@@ -30,8 +28,8 @@
 //!
 //! let dna = "ACGTACGT";
 //! let score = ms.score().by(|(gc, len)| {
-//!     gc.contribute(gc.metric().eval(dna))
-//!         + len.contribute(len.metric().eval(dna.len()))
+//!     gc.contribute(gc.metric().eval(&dna))
+//!         + len.contribute(len.metric().eval(&dna.len()))
 //! });
 //! # Ok::<(), &'static str>(())
 //! ```

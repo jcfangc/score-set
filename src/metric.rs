@@ -100,14 +100,13 @@ pub struct Metric<T, I, Raw, M, F> {
 
 impl<T: Float, I, Raw, M, F> Metric<T, I, Raw, M, F>
 where
-    I: Clone,
-    M: Fn(I) -> Raw,
-    F: Fn(&Raw, I) -> Witnessed<T, Value01>,
+    M: Fn(&I) -> Raw,
+    F: Fn(&Raw, &I) -> Witnessed<T, Value01>,
 {
     /// Evaluate this metric against an input, producing a `[0, 1]` score.
     #[inline]
-    pub fn eval(&self, input: I) -> Witnessed<T, Value01> {
-        let raw = (self.measure)(input.clone());
+    pub fn eval(&self, input: &I) -> Witnessed<T, Value01> {
+        let raw = (self.measure)(input);
         (self.map01)(&raw, input)
     }
 
