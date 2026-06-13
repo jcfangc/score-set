@@ -71,11 +71,6 @@ where
         self.name
     }
 
-    /// No-op terminal method for builder chaining clarity.
-    #[inline]
-    pub fn build(self) -> Self {
-        self
-    }
 }
 
 impl<T, I, F: Clone> Clone for Op<T, I, F> {

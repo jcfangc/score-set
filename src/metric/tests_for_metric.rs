@@ -8,7 +8,7 @@ fn metric_builder_eval() {
         .by(|dna: &str| gc_ratio(dna))
         .map01()
         .by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap())
-        .build();
+        ;
 
     assert_eq!(m.name(), "gc");
 
@@ -23,7 +23,7 @@ fn metric_with_empty_input() {
         .by(|dna: &str| gc_ratio(dna))
         .map01()
         .by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap())
-        .build();
+        ;
 
     let result = m.eval(""); // gc = 0
     assert!((*result - 0.0).abs() < 1e-10);
@@ -36,7 +36,7 @@ fn metric_usize_input() {
         .by(|len: usize| len)
         .map01()
         .by(|raw: &usize, _: usize| Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap())
-        .build();
+        ;
 
     assert_eq!(m.name(), "len");
 

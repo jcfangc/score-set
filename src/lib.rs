@@ -14,14 +14,14 @@
 //! let gc = metric("gc")
 //!     .measure().by(|dna: &str| gc_ratio(dna))
 //!     .map01().by(|raw: &f64, _: &str| Value01::witness((*raw)).unwrap())
-//!     .build();
+//!     ;
 //!
 //! let len = metric("len")
 //!     .measure().by(|len: usize| len)
 //!     .map01().by(|raw: &usize, _: usize| {
 //!         ((*raw as f64 / Value01::witness(100.0).min(1.0))).unwrap()
 //!     })
-//!     .build();
+//!     ;
 //!
 //! let ms = score_set! {
 //!     2.0 => gc,

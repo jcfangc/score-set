@@ -116,12 +116,6 @@ where
     pub fn name(&self) -> &str {
         self.name
     }
-
-    /// No-op terminal method for builder chaining clarity.
-    #[inline]
-    pub fn build(self) -> Self {
-        self
-    }
 }
 
 // Make Metric clone-able when closures are clone-able.
