@@ -6,14 +6,14 @@ fn weighted_mean_normalizes() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let b = metric("b")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let ms = score_set! {
@@ -27,7 +27,6 @@ fn weighted_mean_normalizes() {
         .score()
         .by(|(a, b)| a.contribute(a.metric().eval(1.0)) + b.contribute(b.metric().eval(1.0)));
 
-    // weights 2/5=0.4, 3/5=0.6; both eval=1.0 → total 1.0
     assert!((score.into_inner() - 1.0).abs() < 1e-10);
 }
 
@@ -37,18 +36,16 @@ fn weighted_mean_rejects_zero_sum() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let m2 = metric("m2")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
-    // Type inference cannot uniquely determine `M` when only the error
-    // path is used. Explicit type hint on the strategy resolves this.
     assert!(
         score_set! {
             0.0_f64 => m,
@@ -65,14 +62,14 @@ fn weighted_mean_equal_weights() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let m2 = metric("m2")
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let ms = score_set! {
@@ -82,7 +79,6 @@ fn weighted_mean_equal_weights() {
     .aggregate(strategy::weighted_mean)
     .unwrap();
 
-    // Equal weights - each contributes 0.5
     let score = ms
         .score()
         .by(|(m1, m2)| m1.contribute(m1.metric().eval(0.5)) + m2.contribute(m2.metric().eval(0.5)));
@@ -96,7 +92,7 @@ fn weighted_mean_single_member() {
         .measure()
         .by(|v: f64| v)
         .map01()
-        .by(|raw: &f64, _: f64| Value01::witness(*raw).unwrap())
+        .by(|raw: &f64, _: f64| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let ms = score_set! {
@@ -105,7 +101,6 @@ fn weighted_mean_single_member() {
     .aggregate(strategy::weighted_mean)
     .unwrap();
 
-    // Single member: weight normalizes to 1.0
     let score = ms.score().by(|(m,)| m.contribute(m.metric().eval(0.7)));
 
     assert!((score.into_inner() - 0.7).abs() < 1e-10);
@@ -117,7 +112,7 @@ fn weighted_mean_with_f32() {
         .measure()
         .by(|v: f32| v)
         .map01()
-        .by(|raw: &f32, _: f32| Value01::witness(*raw).unwrap())
+        .by(|raw: &f32, _: f32| (*raw).witness().by(Value01::prove()).unwrap())
         .build();
 
     let ms = score_set! {
