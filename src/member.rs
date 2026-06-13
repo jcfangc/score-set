@@ -78,3 +78,7 @@ impl<T: ScoreFloat, M> Member<T, M> {
         &self.metric
     }
 }
+
+#[cfg(test)]
+#[path = "tests_for_member.rs"]
+mod tests_for_member;

@@ -11,19 +11,15 @@ use core::marker::PhantomData;
 /// Produced by the [`score_set!`](crate::score_set!) macro. Call
 /// [`.aggregate(strategy)`](RawMetricSet::aggregate) to normalize weights and
 /// build a [`MetricSet`].
-pub struct RawMetricSet<T: ScoreFloat, RawMembers> {
+pub struct RawMetricSet<RawMembers> {
     pub(crate) raw: RawMembers,
-    _phantom: PhantomData<T>,
 }
 
-impl<T: ScoreFloat, RawMembers> RawMetricSet<T, RawMembers> {
+impl<RawMembers> RawMetricSet<RawMembers> {
     /// Create a new `RawMetricSet` from a tuple of `RawMember`s.
     #[inline]
     pub fn new(raw: RawMembers) -> Self {
-        Self {
-            raw,
-            _phantom: PhantomData,
-        }
+        Self { raw }
     }
 
     /// Apply an aggregation strategy to normalize weights and produce a
@@ -32,8 +28,9 @@ impl<T: ScoreFloat, RawMembers> RawMetricSet<T, RawMembers> {
     /// The strategy receives the raw member tuple and returns a normalized one.
     /// Use [`strategy::weighted_mean`](crate::strategy::weighted_mean) or
     /// pass a custom closure.
-    pub fn aggregate<M, F>(self, strategy: F) -> Result<MetricSet<T, M>, &'static str>
+    pub fn aggregate<T, M, F>(self, strategy: F) -> Result<MetricSet<T, M>, &'static str>
     where
+        T: ScoreFloat,
         M: Members<T, Raw = RawMembers>,
         F: FnOnce(RawMembers) -> Result<M, &'static str>,
     {
@@ -97,3 +94,7 @@ impl<'a, T: ScoreFloat, Members> ScoreStage<'a, T, Members> {
         f(self.members)
     }
 }
+
+#[cfg(test)]
+#[path = "tests_for_set.rs"]
+mod tests_for_set;

@@ -46,3 +46,7 @@ where
     // SAFETY: validated by NormalizedWeight::validate_set just above.
     Ok(unsafe { M::from_raw_with_weights(raw, &normalized) })
 }
+
+#[cfg(test)]
+#[path = "tests_for_strategy.rs"]
+mod tests_for_strategy;

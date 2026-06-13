@@ -114,3 +114,7 @@ pub(crate) mod sealed {
 pub trait ScoreFloat: sealed::Float {}
 
 impl<T: sealed::Float> ScoreFloat for T {}
+
+#[cfg(test)]
+#[path = "tests_for_float.rs"]
+mod tests_for_float;

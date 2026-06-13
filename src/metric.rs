@@ -135,3 +135,7 @@ impl<T, I, Raw, M: Clone, F: Clone> Clone for Metric<T, I, Raw, M, F> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "tests_for_metric.rs"]
+mod tests_for_metric;
