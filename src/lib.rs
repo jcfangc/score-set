@@ -41,7 +41,6 @@ mod gen_tuple;
 mod macros;
 mod member;
 mod metric;
-mod op;
 mod set;
 mod value;
 
@@ -50,7 +49,6 @@ pub use float::ScoreFloat;
 // score_set! is exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
-pub use op::{Op, op};
 pub use set::{RawScoreSet, ScoreSet, ScoreStage};
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};

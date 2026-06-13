@@ -38,8 +38,7 @@ uv sync                         # 安装依赖（添加依赖后使用）
 
 - **`src/float.rs`** — sealed `Float` trait + 公开 `ScoreFloat` trait（支持 f32/f64）。
 - **`src/value.rs`** — `Value01`、`Weight`、`NormalizedWeight` witness 结构体，以及 `Contribution`、`ContributionSum`、`Score01` newtype。
-- **`src/metric.rs`** — `Metric` builder（`measure().by().map01().by().build()`）。
-- **`src/op.rs`** — `Op` builder（`score().by().build()`）。
+- **`src/metric.rs`** — `Metric` builder（`measure().by().map01().by()`）。
 - **`src/member.rs`** — `RawMember`、`Member`（含 `contribute()`）、`Members` trait（从 raw tuple → normalized tuple 的映射）。
 - **`src/set.rs`** — `RawMetricSet`（不含 `T` 泛型，`T` 由 `aggregate` 方法推断）、`MetricSet`、`ScoreStage`。
 - **`src/strategy.rs`** — `weighted_mean` 聚合策略。
@@ -63,9 +62,6 @@ src/
   metric.rs               # #[cfg(test)] mod tests_for_metric;
   metric/
     tests_for_metric.rs
-  op.rs                   # #[cfg(test)] mod tests_for_op;
-  op/
-    tests_for_op.rs
   member.rs               # #[cfg(test)] mod tests_for_member;
   member/
     tests_for_member.rs
