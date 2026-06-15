@@ -43,12 +43,12 @@ finite_metric! {
         Custom(Box<dyn DynMetric<T, I>>),
 }
 
-// Concrete form: enum locks T and I to specific types
+// Concrete form: enum locks T and I to specific types.
+// Custom escape hatch is auto-generated — no need to declare it.
 finite_metric! {
-    ConcreteKind for f64, &'static str =>
+    ConcreteKind(f64, &'static str) =>
         Zero(ConstMetric<f64, &'static str>),
         One(ConstMetric<f64, &'static str>),
-        Custom(Box<dyn DynMetric<f64, &'static str>>),
 }
 
 // ===========================================================================

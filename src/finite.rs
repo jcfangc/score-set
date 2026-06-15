@@ -6,8 +6,9 @@
 ///
 /// This macro generates an enum whose variants each wrap a concrete metric
 /// type. The generated [`DynMetric`](crate::DynMetric) implementation
-/// uses `match` + static dispatch — zero vtable overhead for all variants
-/// except the optional `Custom` escape hatch.
+/// uses `match` + static dispatch — zero vtable overhead for all
+/// business-logic variants. A `Custom(Box<dyn DynMetric<T, I>>)` escape
+/// hatch is always present for one-off dynamic metrics.
 ///
 /// # Syntax
 ///
@@ -22,14 +23,14 @@
 /// }
 /// ```
 ///
-/// **Concrete form** — when variant types have fixed `T, I`:
+/// **Concrete form** — when variant types have fixed `T, I`.
+/// The `Custom` escape hatch is auto-generated:
 ///
 /// ```ignore
 /// finite_metric! {
-///     pub DnaMetricKind for f64, DnaContext<'static> =>
+///     pub DnaMetricKind(f64, DnaContext<'static>) =>
 ///         Gc(GcRatio),
 ///         Len(SeqLen),
-///         Custom(Box<dyn DynMetric<f64, DnaContext<'static>>>),
 /// }
 /// ```
 ///
@@ -78,30 +79,35 @@ macro_rules! finite_metric {
         }
     };
 
-    // ---- concrete form: Foo for T, I (T, I are concrete types) ----
+    // ---- concrete form: Foo(T, I) (T, I are concrete types) ----
+    // Custom escape hatch is auto-generated — users only list their
+    // business-logic variants.
     (
         $(#[$attr:meta])*
-        $vis:vis $name:ident for $T:ty, $I:ty =>
+        $vis:vis $name:ident ( $T:ty , $I:ty ) =>
         $($variant:ident($ty:ty)),+ $(,)?
     ) => {
         $(#[$attr])*
         #[allow(clippy::pub_enum_variant_fields)]
         $vis enum $name {
-            $($variant($ty)),+
+            $($variant($ty),)+
+            Custom(Box<dyn $crate::DynMetric<$T, $I>>),
         }
 
         impl $crate::DynMetric<$T, $I> for $name {
             #[inline]
             fn eval(&self, input: &$I) -> $crate::Witnessed<$T, $crate::Value01> {
                 match self {
-                    $(Self::$variant(m) => m.eval(input)),+
+                    $(Self::$variant(m) => m.eval(input),)+
+                    Self::Custom(c) => c.eval(input),
                 }
             }
 
             #[inline]
             fn name(&self) -> &str {
                 match self {
-                    $(Self::$variant(m) => m.name()),+
+                    $(Self::$variant(m) => m.name(),)+
+                    Self::Custom(c) => c.name(),
                 }
             }
         }
