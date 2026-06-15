@@ -1,7 +1,8 @@
 /// Declare a set of `weight => metric` pairs.
 ///
 /// Each weight is validated > 0 via [`GtZero`](crate::GtZero). The macro
-/// normalizes weights and returns a [`ScoreSet`](crate::ScoreSet) directly.
+/// normalizes weights and returns a [`FixedScoreSet`](crate::FixedScoreSet)
+/// directly.
 ///
 /// # Example
 ///
@@ -16,7 +17,7 @@
 macro_rules! score_set {
     ($($weight:expr => $metric:expr),+ $(,)?) => {
         (|| -> Result<_, &'static str> {
-            $crate::ScoreSet::normalize((
+            $crate::FixedScoreSet::normalize((
                 $($crate::raw_member($weight, $metric)?,)+
             ))
         })()

@@ -1,10 +1,81 @@
 use crate::*;
 
-// ---------------------------------------------------------------------------
-// Helper: build a boxed ErasedMetric
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// DynMetric trait tests
+// ===========================================================================
 
-fn make_identity_metric(name: &'static str) -> Box<dyn ErasedMetric<f64, f64>> {
+#[test]
+fn dyn_metric_from_metric_builder() -> Result<(), &'static str> {
+    let m = metric("test-metric")
+        .measure()
+        .by(|x: &f64| *x)
+        .map01()
+        .identity();
+
+    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+
+    assert_eq!(dyn_metric.name(), "test-metric");
+    let score = dyn_metric.eval(&0.5);
+    assert!((*score - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dyn_metric_clamp_behavior() -> Result<(), &'static str> {
+    let m = metric("clampy")
+        .measure()
+        .by(|x: &f64| *x)
+        .map01()
+        .identity();
+
+    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+
+    assert!((*dyn_metric.eval(&1.5) - 1.0).abs() < 1e-10);
+    assert!((*dyn_metric.eval(&-0.5) - 0.0).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dyn_metric_nested_box() -> Result<(), &'static str> {
+    let m = metric("nested")
+        .measure()
+        .by(|x: &f64| *x)
+        .map01()
+        .identity();
+
+    let inner: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+    // Box<dyn DynMetric> itself implements DynMetric
+    let outer: Box<dyn DynMetric<f64, f64>> = Box::new(inner);
+
+    assert_eq!(outer.name(), "nested");
+    assert!((*outer.eval(&0.75) - 0.75).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dyn_metric_different_input_types() -> Result<(), &'static str> {
+    // Metric over &str input
+    let m = metric("gc")
+        .measure()
+        .by(|dna: &&str| crate::lab::gc_ratio(dna))
+        .map01()
+        .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
+
+    let dyn_metric: Box<dyn DynMetric<f64, &str>> = Box::new(m);
+    let score = dyn_metric.eval(&"ACGT");
+    assert!((*score - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+// ===========================================================================
+// DynamicScoreSet tests
+// ===========================================================================
+
+fn make_identity_metric(name: &'static str) -> Box<dyn DynMetric<f64, f64>> {
     fn measure(x: &f64) -> f64 {
         *x
     }
@@ -13,10 +84,6 @@ fn make_identity_metric(name: &'static str) -> Box<dyn ErasedMetric<f64, f64>> {
     }
     Box::new(metric(name).measure().by(measure).map01().by(map01))
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[test]
 fn dynamic_score_set_new_and_score() -> Result<(), &'static str> {
@@ -87,9 +154,9 @@ fn dynamic_score_set_f32() -> Result<(), &'static str> {
     fn map01(raw: &f32, _: &f32) -> Witnessed<f32, Value01> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
-    let a: Box<dyn ErasedMetric<f32, f32>> =
+    let a: Box<dyn DynMetric<f32, f32>> =
         Box::new(metric("a").measure().by(measure).map01().by(map01));
-    let b: Box<dyn ErasedMetric<f32, f32>> =
+    let b: Box<dyn DynMetric<f32, f32>> =
         Box::new(metric("b").measure().by(measure).map01().by(map01));
 
     let set = DynamicScoreSet::<f32, f32>::new(vec![(1.0, a), (3.0, b)])?;
@@ -128,8 +195,8 @@ fn dynamic_score_set_iter() -> Result<(), &'static str> {
 #[test]
 fn dynamic_score_set_heterogeneous_metrics() -> Result<(), &'static str> {
     // Mix different metric types — the whole point of DynamicScoreSet.
-    let a: Box<dyn ErasedMetric<f64, f64>> = make_identity_metric("a");
-    let b: Box<dyn ErasedMetric<f64, f64>> = make_identity_metric("b");
+    let a: Box<dyn DynMetric<f64, f64>> = make_identity_metric("a");
+    let b: Box<dyn DynMetric<f64, f64>> = make_identity_metric("b");
 
     let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, a), (2.0, b)])?;
 

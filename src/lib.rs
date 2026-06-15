@@ -1,7 +1,7 @@
 //! # score-set
 //!
 //! A Rust library for building **weighted scoring operator sets** with three
-//! dispatch strategies — from fully static to fully dynamic.
+//! dispatch strategies — from compile-time fixed to fully dynamic.
 //!
 //! It does not prescribe a unified input or context type. Instead it declares,
 //! stores, normalizes, and combines a set of weighted operators.
@@ -10,11 +10,11 @@
 //!
 //! | Layer | Type | Dispatch | When to use |
 //! |---|---|---|---|
-//! | 1 — static | [`ScoreSet`] via [`score_set!`] | Zero vtable, compile-time | Known metric set at compile time |
-//! | 2 — enum | [`EnumScoreSet`] via [`declare_metric_enum!`] | Zero vtable (enum match) | Runtime composition, known metric types |
+//! | 1 — fixed | [`FixedScoreSet`] via [`score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
+//! | 2 — finite | [`FiniteScoreSet`] via [`finite_metric!`] | Enum match, zero vtable | Runtime composition, known metric types |
 //! | 3 — dynamic | [`DynamicScoreSet`] | Vtable per call | Fully heterogeneous, runtime assembly |
 //!
-//! # Quick example (Layer 1 — static)
+//! # Quick example (Layer 1 — fixed)
 //!
 //! ```ignore
 //! use score_set::*;
@@ -42,27 +42,24 @@
 //! # Ok::<(), &'static str>(())
 //! ```
 
-mod dynamic_set;
-mod enum_set;
-mod erased;
+mod dynamic;
+mod finite;
+mod fixed;
 mod float;
 mod gen_tuple;
 mod macros;
 mod member;
 mod metric;
-mod metric_enum;
-mod set;
 mod value;
 
 // Public API
-pub use dynamic_set::{DynamicMember, DynamicScoreSet};
-pub use enum_set::{EnumMember, EnumScoreSet};
-pub use erased::ErasedMetric;
+pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet};
+pub use finite::{FiniteMember, FiniteScoreSet};
+pub use fixed::{FixedScoreSet, ScoreStage};
 pub use float::Float;
-// score_set! and declare_metric_enum! are exported at crate root via #[macro_export]
+// score_set! and finite_metric! are exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
-pub use set::{ScoreSet, ScoreStage};
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 

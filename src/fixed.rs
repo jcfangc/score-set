@@ -3,20 +3,21 @@ use crate::value::NormalizedContainer;
 use core::marker::PhantomData;
 
 // ---------------------------------------------------------------------------
-// ScoreSet — normalized weighted set of scoring operators
+// FixedScoreSet — compile-time fixed weighted set (Layer 1)
 // ---------------------------------------------------------------------------
 
-/// A static weighted set of scoring operators with normalized weights.
+/// A compile-time fixed weighted set of scoring operators with normalized
+/// weights.
 ///
 /// Construct via [`score_set!`](crate::score_set!) or
-/// [`ScoreSet::normalize`]. Call [`.score()`](ScoreSet::score) to enter the
-/// scoring stage.
-pub struct ScoreSet<T: Float, Members> {
+/// [`FixedScoreSet::normalize`]. Call [`.score()`](FixedScoreSet::score) to
+/// enter the scoring stage.
+pub struct FixedScoreSet<T: Float, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
 }
 
-impl<T: Float, Members> ScoreSet<T, Members>
+impl<T: Float, Members> FixedScoreSet<T, Members>
 where
     Members: crate::Members<T>,
 {
@@ -26,7 +27,7 @@ where
         let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
         let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
         let container = NormalizedContainer::witness(normalized)?;
-        Ok(ScoreSet {
+        Ok(FixedScoreSet {
             members: Members::from_raw_with_weights(raw, &container),
             _phantom: PhantomData,
         })
@@ -46,7 +47,7 @@ where
 // ScoreStage — user-provided scoring closure
 // ---------------------------------------------------------------------------
 
-/// The scoring stage, created by [`ScoreSet::score`].
+/// The scoring stage, created by [`FixedScoreSet::score`].
 ///
 /// Call [`.by(closure)`](ScoreStage::by) to evaluate the set with an
 /// arbitrary composition of its members.
@@ -67,4 +68,4 @@ impl<'a, T: Float, Members> ScoreStage<'a, T, Members> {
 }
 
 #[cfg(test)]
-mod tests_for_set;
+mod tests_for_fixed;

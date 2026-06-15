@@ -1,0 +1,240 @@
+// ===========================================================================
+// finite_metric! — generate a zero-vtable finite metric enum (Layer 2)
+// ===========================================================================
+
+/// Declare a finite enum of metric types with static-dispatch `eval`.
+///
+/// This macro generates an enum whose variants each wrap a concrete metric
+/// type. The generated [`DynMetric`](crate::DynMetric) implementation
+/// uses `match` + static dispatch — zero vtable overhead for all variants
+/// except the optional `Custom` escape hatch.
+///
+/// # Syntax
+///
+/// ```ignore
+/// finite_metric! {
+///     pub MetricKind<T, I> =>
+///         Gc(GcMetric),
+///         Tm(TmMetric),
+///         Extinction(ExtinctionMetric),
+///         Custom(Box<dyn DynMetric<T, I>>),
+/// }
+/// ```
+///
+/// # Generated items
+///
+/// - An enum `MetricKind<T: Float, I>` with the listed variants.
+/// - A [`DynMetric`](crate::DynMetric) implementation with
+///   static-dispatch `eval` and `name` methods.
+///
+/// # Requirements on variant types
+///
+/// Each variant's inner type must provide:
+/// - `fn eval(&self, input: &I) -> Witnessed<T, Value01>`
+/// - `fn name(&self) -> &str`
+///
+/// Both [`Metric`](crate::Metric) and `Box<dyn DynMetric<T, I>>` satisfy
+/// this contract.
+///
+/// # Example
+///
+/// ```ignore
+/// use score_set::*;
+/// use core::marker::PhantomData;
+///
+/// // Define a concrete metric type
+/// struct GcRatio<T: Float, I> { _phantom: PhantomData<(T, I)> }
+/// impl<T: Float, I> GcRatio<T, I> {
+///     fn eval(&self, _: &I) -> Witnessed<T, Value01> { ... }
+///     fn name(&self) -> &str { "gc" }
+/// }
+///
+/// // Declare the enum
+/// finite_metric! {
+///     pub MyMetric<T, I> =>
+///         Gc(GcRatio<T, I>),
+///         Custom(Box<dyn DynMetric<T, I>>),
+/// }
+/// ```
+#[macro_export]
+macro_rules! finite_metric {
+    (
+        $(#[$attr:meta])*
+        $vis:vis $name:ident<$T:ident, $I:ident> =>
+        $($variant:ident($ty:ty)),+ $(,)?
+    ) => {
+        $(#[$attr])*
+        #[allow(clippy::pub_enum_variant_fields)]
+        $vis enum $name<$T: $crate::Float, $I> {
+            $($variant($ty)),+
+        }
+
+        impl<$T: $crate::Float, $I> $crate::DynMetric<$T, $I> for $name<$T, $I> {
+            #[inline]
+            fn eval(&self, input: &$I) -> $crate::Witnessed<$T, $crate::Value01> {
+                match self {
+                    $(Self::$variant(m) => m.eval(input)),+
+                }
+            }
+
+            #[inline]
+            fn name(&self) -> &str {
+                match self {
+                    $(Self::$variant(m) => m.name()),+
+                }
+            }
+        }
+    };
+}
+
+// ===========================================================================
+// FiniteScoreSet — weighted set with finite-enum dispatch (Layer 2)
+// ===========================================================================
+
+use crate::dynamic::DynMetric;
+use crate::float::Float;
+use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
+use core::marker::PhantomData;
+use witnessed::{WitnessExt, Witnessed};
+
+// ---------------------------------------------------------------------------
+// FiniteMember — a single weighted metric in a FiniteScoreSet
+// ---------------------------------------------------------------------------
+
+/// A member of a [`FiniteScoreSet`]: a normalized weight paired with a metric
+/// enum variant.
+///
+/// See [`Member`](crate::Member) for the Layer-1 equivalent.
+pub struct FiniteMember<T: Float, E> {
+    /// The normalized weight.
+    pub weight: Witnessed<T, NormalizedWeight>,
+    /// The metric enum variant.
+    pub metric: E,
+}
+
+impl<T: Float, E> FiniteMember<T, E> {
+    /// Compute the weighted contribution of a metric score.
+    ///
+    /// `contribute(score) = score × normalized_weight`
+    #[inline]
+    pub fn contribute(&self, value: Witnessed<T, Value01>) -> T {
+        value.into_inner() * self.weight.into_inner()
+    }
+
+    /// Return a reference to the metric.
+    #[inline]
+    pub fn metric(&self) -> &E {
+        &self.metric
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FiniteScoreSet — weighted set with enum-based static dispatch (Layer 2)
+// ---------------------------------------------------------------------------
+
+/// A weighted set of scoring operators using enum-based static dispatch.
+///
+/// `FiniteScoreSet` stores a `Vec` of [`FiniteMember`]s, each wrapping a
+/// variant of a user-declared metric enum. At evaluation time, the enum's
+/// `eval` method dispatches via `match` — zero vtable overhead for all
+/// non-`Custom` variants.
+///
+/// Construct via [`FiniteScoreSet::new`], then call
+/// [`.score()`](FiniteScoreSet::score).
+///
+/// # Type parameters
+///
+/// - `T: Float` — the floating-point type (`f32` or `f64`).
+/// - `I` — the input type passed to each metric.
+/// - `E: DynMetric<T, I>` — the metric enum generated by
+///   [`finite_metric!`](crate::finite_metric!).
+///
+/// # Example
+///
+/// ```ignore
+/// let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+///     (2.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
+///     (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
+/// ])?;
+///
+/// let total = set.score(&"input");
+/// // total = 0.4 * 0 + 0.6 * 1 = 0.6
+/// ```
+pub struct FiniteScoreSet<T: Float, I, E> {
+    members: Vec<FiniteMember<T, E>>,
+    _phantom: PhantomData<I>,
+}
+
+impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
+    /// Create a new `FiniteScoreSet` from a list of `(weight, metric_enum)` pairs.
+    ///
+    /// Each weight must be finite and strictly positive. Weights are normalized
+    /// to sum to 1.
+    pub fn new(entries: Vec<(T, E)>) -> Result<Self, &'static str> {
+        if entries.is_empty() {
+            return Err("FiniteScoreSet: must have at least one member");
+        }
+
+        // Validate all weights are > 0
+        for (w, _) in &entries {
+            GtZero::witness(*w)?;
+        }
+
+        let sum: T = entries.iter().fold(T::zero(), |acc, (w, _)| acc + *w);
+
+        let mut normalized: Vec<T> = entries.iter().map(|(w, _)| *w / sum).collect();
+
+        // Sort a copy for binary search in NormalizedWeight
+        let mut sorted = normalized.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(core::cmp::Ordering::Equal));
+        let container = NormalizedContainer::witness(sorted)?;
+
+        let members: Vec<FiniteMember<T, E>> = entries
+            .into_iter()
+            .zip(normalized.drain(..))
+            .map(|((_, metric), nw)| {
+                let weight = nw
+                    .witness()
+                    .by(|v| NormalizedWeight::from_normalized_container(*v, &container))?;
+                Ok(FiniteMember { weight, metric })
+            })
+            .collect::<Result<Vec<_>, &'static str>>()?;
+
+        Ok(FiniteScoreSet {
+            members,
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Evaluate all metrics against `input` and sum their weighted contributions.
+    ///
+    /// This is the most common aggregation: each metric is evaluated, multiplied
+    /// by its normalized weight, and summed.
+    #[inline]
+    pub fn score(&self, input: &I) -> T {
+        self.members
+            .iter()
+            .fold(T::zero(), |acc, m| acc + m.contribute(m.metric.eval(input)))
+    }
+
+    /// Return the number of members in this set.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.members.len()
+    }
+
+    /// Return `true` if the set has no members.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.members.is_empty()
+    }
+
+    /// Iterate over the members.
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &FiniteMember<T, E>> {
+        self.members.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests_for_finite;
