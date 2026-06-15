@@ -33,9 +33,7 @@ fn metric_usize_input() {
         .measure()
         .by(|len: &usize| *len)
         .map01()
-        .by(|raw: &usize, _: &usize| {
-            Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
-        });
+        .by(|raw: &usize, _: &usize| Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap());
 
     assert_eq!(m.name(), "len");
 
@@ -48,11 +46,7 @@ fn metric_usize_input() {
 
 #[test]
 fn map01_identity() {
-    let m = metric("id")
-        .measure()
-        .by(|v: &f64| *v)
-        .map01()
-        .identity();
+    let m = metric("id").measure().by(|v: &f64| *v).map01().identity();
 
     assert!((*m.eval(&0.5) - 0.5).abs() < 1e-10);
     assert!((*m.eval(&1.5) - 1.0).abs() < 1e-10);

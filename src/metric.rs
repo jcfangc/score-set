@@ -116,8 +116,11 @@ impl<I, T: Float, M> Map01Stage<I, T, M> {
 
     /// Asymmetric Cauchy: `1 / (1 + (raw / half)^2)`, with independent
     /// half-widths for the left (`raw < 0`) and right (`raw >= 0`) sides.
-    pub fn cauchy(self, left: T, right: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
-    {
+    pub fn cauchy(
+        self,
+        left: T,
+        right: T,
+    ) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
         self.by(move |raw: &T, _: &I| {
             let h = if *raw < T::zero() { left } else { right };
             let v = T::one() / (T::one() + (*raw / h) * (*raw / h));

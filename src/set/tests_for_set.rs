@@ -13,9 +13,7 @@ fn readme_example() -> Result<(), &'static str> {
         .measure()
         .by(|len: &usize| *len)
         .map01()
-        .by(|raw: &usize, _: &usize| {
-            Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
-        });
+        .by(|raw: &usize, _: &usize| Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap());
 
     let ms = score_set! {
         2.0 => gc,
@@ -78,7 +76,9 @@ fn normalize_with_f32() -> Result<(), &'static str> {
         .by(|raw: &f32, _: &f32| Value01::witness(*raw).unwrap());
 
     let ms = score_set! { 2.0_f32 => m }?;
-    let score = ms.score().by(|(m,)| m.contribute(m.metric().eval(&1.0_f32)));
+    let score = ms
+        .score()
+        .by(|(m,)| m.contribute(m.metric().eval(&1.0_f32)));
     assert!((score - 1.0_f32).abs() < 1e-7);
     Ok(())
 }

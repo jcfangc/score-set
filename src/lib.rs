@@ -1,12 +1,20 @@
 //! # score-set
 //!
-//! A Rust library for building **static weighted scoring operator sets**.
+//! A Rust library for building **weighted scoring operator sets** with three
+//! dispatch strategies — from fully static to fully dynamic.
 //!
 //! It does not prescribe a unified input or context type. Instead it declares,
-//! stores, normalizes, and combines a set of weighted operators — scoring is
-//! done via a user-provided closure that can inject arbitrary runtime data.
+//! stores, normalizes, and combines a set of weighted operators.
 //!
-//! # Quick example
+//! # Three-layer architecture
+//!
+//! | Layer | Type | Dispatch | When to use |
+//! |---|---|---|---|
+//! | 1 — static | [`ScoreSet`] via [`score_set!`] | Zero vtable, compile-time | Known metric set at compile time |
+//! | 2 — enum | [`EnumScoreSet`] via [`declare_metric_enum!`] | Zero vtable (enum match) | Runtime composition, known metric types |
+//! | 3 — dynamic | [`DynamicScoreSet`] | Vtable per call | Fully heterogeneous, runtime assembly |
+//!
+//! # Quick example (Layer 1 — static)
 //!
 //! ```ignore
 //! use score_set::*;
@@ -34,17 +42,24 @@
 //! # Ok::<(), &'static str>(())
 //! ```
 
+mod dynamic_set;
+mod enum_set;
+mod erased;
 mod float;
 mod gen_tuple;
 mod macros;
 mod member;
 mod metric;
+mod metric_enum;
 mod set;
 mod value;
 
 // Public API
+pub use dynamic_set::{DynamicMember, DynamicScoreSet};
+pub use enum_set::{EnumMember, EnumScoreSet};
+pub use erased::ErasedMetric;
 pub use float::Float;
-// score_set! is exported at crate root via #[macro_export]
+// score_set! and declare_metric_enum! are exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use set::{ScoreSet, ScoreStage};
