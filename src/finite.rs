@@ -11,19 +11,31 @@
 ///
 /// # Syntax
 ///
+/// **Generic form** — when variant types are themselves generic over `T, I`:
+///
 /// ```ignore
 /// finite_metric! {
 ///     pub MetricKind<T, I> =>
-///         Gc(GcMetric),
-///         Tm(TmMetric),
-///         Extinction(ExtinctionMetric),
+///         Gc(GcRatio<T, I>),
+///         Tm(TmScore<T, I>),
 ///         Custom(Box<dyn DynMetric<T, I>>),
+/// }
+/// ```
+///
+/// **Concrete form** — when variant types have fixed `T, I`:
+///
+/// ```ignore
+/// finite_metric! {
+///     pub DnaMetricKind for f64, DnaContext<'static> =>
+///         Gc(GcRatio),
+///         Len(SeqLen),
+///         Custom(Box<dyn DynMetric<f64, DnaContext<'static>>>),
 /// }
 /// ```
 ///
 /// # Generated items
 ///
-/// - An enum `MetricKind<T: Float, I>` with the listed variants.
+/// - An enum with the listed variants (generic or concrete).
 /// - A [`DynMetric`](crate::DynMetric) implementation with
 ///   static-dispatch `eval` and `name` methods.
 ///
@@ -35,29 +47,9 @@
 ///
 /// Both [`Metric`](crate::Metric) and `Box<dyn DynMetric<T, I>>` satisfy
 /// this contract.
-///
-/// # Example
-///
-/// ```ignore
-/// use score_set::*;
-/// use core::marker::PhantomData;
-///
-/// // Define a concrete metric type
-/// struct GcRatio<T: Float, I> { _phantom: PhantomData<(T, I)> }
-/// impl<T: Float, I> GcRatio<T, I> {
-///     fn eval(&self, _: &I) -> Witnessed<T, Value01> { ... }
-///     fn name(&self) -> &str { "gc" }
-/// }
-///
-/// // Declare the enum
-/// finite_metric! {
-///     pub MyMetric<T, I> =>
-///         Gc(GcRatio<T, I>),
-///         Custom(Box<dyn DynMetric<T, I>>),
-/// }
-/// ```
 #[macro_export]
 macro_rules! finite_metric {
+    // ---- generic form: Foo<T, I> (T, I are type parameters) ----
     (
         $(#[$attr:meta])*
         $vis:vis $name:ident<$T:ident, $I:ident> =>
@@ -70,6 +62,35 @@ macro_rules! finite_metric {
         }
 
         impl<$T: $crate::Float, $I> $crate::DynMetric<$T, $I> for $name<$T, $I> {
+            #[inline]
+            fn eval(&self, input: &$I) -> $crate::Witnessed<$T, $crate::Value01> {
+                match self {
+                    $(Self::$variant(m) => m.eval(input)),+
+                }
+            }
+
+            #[inline]
+            fn name(&self) -> &str {
+                match self {
+                    $(Self::$variant(m) => m.name()),+
+                }
+            }
+        }
+    };
+
+    // ---- concrete form: Foo for T, I (T, I are concrete types) ----
+    (
+        $(#[$attr:meta])*
+        $vis:vis $name:ident for $T:ty, $I:ty =>
+        $($variant:ident($ty:ty)),+ $(,)?
+    ) => {
+        $(#[$attr])*
+        #[allow(clippy::pub_enum_variant_fields)]
+        $vis enum $name {
+            $($variant($ty)),+
+        }
+
+        impl $crate::DynMetric<$T, $I> for $name {
             #[inline]
             fn eval(&self, input: &$I) -> $crate::Witnessed<$T, $crate::Value01> {
                 match self {

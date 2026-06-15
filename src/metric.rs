@@ -167,6 +167,23 @@ where
     }
 }
 
+// Separate impl block for .boxed() — requires 'static for Box<dyn>.
+impl<T: Float, I: 'static, Raw: 'static, M: 'static, F: 'static> Metric<T, I, Raw, M, F>
+where
+    M: Fn(&I) -> Raw,
+    F: Fn(&Raw, &I) -> Witnessed<T, Value01>,
+{
+    /// Box this metric as a `Box<dyn DynMetric<T, I>>` for use in
+    /// [`DynamicScoreSet`](crate::DynamicScoreSet).
+    ///
+    /// This is a convenience over `Box::new(metric)` — it infers the
+    /// `DynMetric` type automatically, avoiding an explicit annotation.
+    #[inline]
+    pub fn boxed(self) -> Box<dyn crate::DynMetric<T, I>> {
+        Box::new(self)
+    }
+}
+
 // Make Metric clone-able when closures are clone-able.
 impl<T, I, Raw, M: Clone, F: Clone> Clone for Metric<T, I, Raw, M, F> {
     fn clone(&self) -> Self {

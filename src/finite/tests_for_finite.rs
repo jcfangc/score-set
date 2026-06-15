@@ -31,15 +31,24 @@ impl<T: Float, I> ConstMetric<T, I> {
 }
 
 // ---------------------------------------------------------------------------
-// Declare a test enum
+// Declare test enums
 // ---------------------------------------------------------------------------
 
+// Generic form: enum is generic over T, I
 finite_metric! {
     TestKind<T, I> =>
         AlwaysZero(ConstMetric<T, I>),
         AlwaysOne(ConstMetric<T, I>),
         Half(ConstMetric<T, I>),
         Custom(Box<dyn DynMetric<T, I>>),
+}
+
+// Concrete form: enum locks T and I to specific types
+finite_metric! {
+    ConcreteKind for f64, &'static str =>
+        Zero(ConstMetric<f64, &'static str>),
+        One(ConstMetric<f64, &'static str>),
+        Custom(Box<dyn DynMetric<f64, &'static str>>),
 }
 
 // ===========================================================================
@@ -232,6 +241,42 @@ fn finite_score_set_iter() -> Result<(), &'static str> {
 
     let names: Vec<&str> = set.iter().map(|m| m.metric().name()).collect();
     assert_eq!(names, vec!["zero", "one"]);
+
+    Ok(())
+}
+
+// ===========================================================================
+// Concrete-form enum tests (finite_metric! { Name for T, I => ... })
+// ===========================================================================
+
+#[test]
+fn concrete_form_eval() {
+    let zero = ConcreteKind::Zero(ConstMetric::new("zero", 0.0_f64));
+    let one = ConcreteKind::One(ConstMetric::new("one", 1.0_f64));
+
+    assert_eq!(zero.name(), "zero");
+    assert_eq!(one.name(), "one");
+    assert!((*zero.eval(&"ignored") - 0.0).abs() < 1e-10);
+    assert!((*one.eval(&"ignored") - 1.0).abs() < 1e-10);
+}
+
+#[test]
+fn concrete_form_as_dyn_metric() {
+    let zero = ConcreteKind::Zero(ConstMetric::new("zero", 0.0_f64));
+    let dyn_ref: &dyn DynMetric<f64, &str> = &zero;
+    assert_eq!(dyn_ref.name(), "zero");
+}
+
+#[test]
+fn concrete_form_in_finite_score_set() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::new(vec![
+        (2.0, ConcreteKind::Zero(ConstMetric::new("zero", 0.0))),
+        (3.0, ConcreteKind::One(ConstMetric::new("one", 1.0))),
+    ])?;
+
+    // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
+    let total = set.score(&"x");
+    assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
 }

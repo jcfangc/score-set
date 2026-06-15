@@ -206,3 +206,56 @@ fn dynamic_score_set_heterogeneous_metrics() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// Real-world example: DNA sequence scoring
+// ===========================================================================
+
+#[derive(Debug, Clone)]
+struct DnaContext<'a> {
+    dna: &'a str,
+    len: usize,
+}
+
+impl<'a> DnaContext<'a> {
+    fn new(dna: &'a str) -> Self {
+        Self {
+            dna,
+            len: dna.len(),
+        }
+    }
+}
+
+#[test]
+fn dynamic_score_set_dna_example() -> Result<(), &'static str> {
+    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("gc_ratio")
+            .measure()
+            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+            .map01()
+            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
+    );
+
+    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("seq_len")
+            .measure()
+            .by(|ctx: &DnaContext| ctx.len as f64)
+            .map01()
+            .linear(100.0),
+    );
+
+    let set = DynamicScoreSet::<f64, DnaContext>::new(vec![(2.0, gc), (1.0, len)])?;
+
+    let ctx = DnaContext::new("ACGTACGTACGT");
+    let total = set.score(&ctx);
+    assert!(total >= 0.0 && total <= 1.0);
+
+    // Inspect individual contributions
+    for m in set.iter() {
+        let raw_weight: f64 = m.weight.into_inner();
+        let score = m.metric().eval(&ctx);
+        let _contribution = raw_weight * (*score);
+    }
+
+    Ok(())
+}
