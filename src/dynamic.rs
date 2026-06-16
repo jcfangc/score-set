@@ -216,6 +216,106 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
     pub fn iter(&self) -> impl Iterator<Item = &DynamicMember<T, I>> {
         self.members.iter()
     }
+
+    /// Create a builder for incremental construction of a `DynamicScoreSet`.
+    ///
+    /// Use this when members are not known up front — push them one by one,
+    /// then call [`.build()`](DynamicScoreSetBuilder::build) to finalize.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let set = DynamicScoreSet::<f64, &str>::builder()
+    ///     .push(2.0, gc_metric.boxed())?
+    ///     .push(3.0, len_metric.boxed())?
+    ///     .build()?;
+    /// ```
+    #[inline]
+    pub fn builder() -> DynamicScoreSetBuilder<T, I> {
+        DynamicScoreSetBuilder {
+            entries: Vec::new(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DynamicScoreSetBuilder — incremental builder for DynamicScoreSet
+// ---------------------------------------------------------------------------
+
+/// Incremental builder for [`DynamicScoreSet`].
+///
+/// Accumulates raw `(weight, metric)` pairs via [`.push()`](Self::push), then
+/// normalizes them into a [`DynamicScoreSet`] via [`.build()`](Self::build).
+///
+/// Each weight is validated on push (must be finite and > 0). Normalization
+/// happens once at build time.
+///
+/// # Examples
+///
+/// Chain construction:
+///
+/// ```ignore
+/// let set = DynamicScoreSet::<f64, &str>::builder()
+///     .push(2.0, gc_metric.boxed())?
+///     .push(3.0, len_metric.boxed())?
+///     .build()?;
+/// ```
+///
+/// Conditional construction:
+///
+/// ```ignore
+/// let mut builder = DynamicScoreSet::<f64, &str>::builder();
+/// builder = builder.push(2.0, baseline_metric.boxed())?;
+/// if enable_extra {
+///     builder = builder.push(1.0, extra_metric.boxed())?;
+/// }
+/// let set = builder.build()?;
+/// ```
+pub struct DynamicScoreSetBuilder<T: Float, I> {
+    entries: Vec<(T, Box<dyn DynMetric<T, I>>)>,
+}
+
+impl<T: Float, I> DynamicScoreSetBuilder<T, I> {
+    /// Push a metric with a raw weight into the builder.
+    ///
+    /// The weight must be finite and strictly positive. This is validated
+    /// immediately (fail-fast). Takes and returns `Self` for chaining.
+    ///
+    /// For incremental construction, rebind the result:
+    ///
+    /// ```ignore
+    /// let mut builder = DynamicScoreSet::builder();
+    /// builder = builder.push(2.0, gc_metric.boxed())?;
+    /// if some_condition {
+    ///     builder = builder.push(1.0, extra_metric.boxed())?;
+    /// }
+    /// let set = builder.build()?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `weight` is zero, negative, or not finite.
+    #[inline]
+    pub fn push(
+        mut self,
+        weight: T,
+        metric: Box<dyn DynMetric<T, I>>,
+    ) -> Result<Self, &'static str> {
+        GtZero::witness(weight)?;
+        self.entries.push((weight, metric));
+        Ok(self)
+    }
+
+    /// Consume the builder and produce a [`DynamicScoreSet`] with normalized
+    /// weights.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no members were pushed.
+    #[inline]
+    pub fn build(self) -> Result<DynamicScoreSet<T, I>, &'static str> {
+        DynamicScoreSet::new(self.entries)
+    }
 }
 
 #[cfg(test)]

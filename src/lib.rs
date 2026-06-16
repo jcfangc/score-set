@@ -10,7 +10,7 @@
 //!
 //! | Layer | Type | Dispatch | When to use |
 //! |---|---|---|---|
-//! | 1 — fixed | [`FixedScoreSet`] via [`score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
+//! | 1 — fixed | [`FixedScoreSet`] via [`fixed_score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
 //! | 2 — finite | [`FiniteScoreSet`] via [`finite_metric!`] | Enum match, zero vtable | Runtime composition, known metric types |
 //! | 3 — dynamic | [`DynamicScoreSet`] | Vtable per call | Fully heterogeneous, runtime assembly |
 //!
@@ -29,7 +29,7 @@
 //!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
 //!     });
 //!
-//! let ms = score_set! {
+//! let ms = fixed_score_set! {
 //!     2.0 => gc,
 //!     3.0 => len,
 //! }?;
@@ -53,11 +53,11 @@ mod metric;
 mod value;
 
 // Public API
-pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet};
+pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder};
 pub use finite::{FiniteMember, FiniteScoreSet};
 pub use fixed::{FixedScoreSet, ScoreStage};
 pub use float::Float;
-// score_set! and finite_metric! are exported at crate root via #[macro_export]
+// fixed_score_set! and finite_metric! are exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};

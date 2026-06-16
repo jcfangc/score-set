@@ -259,3 +259,126 @@ fn dynamic_score_set_dna_example() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// DynamicScoreSetBuilder tests
+// ===========================================================================
+
+#[test]
+fn builder_chained_push() -> Result<(), &'static str> {
+    let set = DynamicScoreSet::<f64, f64>::builder()
+        .push(2.0, make_identity_metric("a"))?
+        .push(3.0, make_identity_metric("b"))?
+        .build()?;
+
+    assert_eq!(set.len(), 2);
+    // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
+    let total = set.score(&0.5);
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn builder_conditional_push() -> Result<(), &'static str> {
+    let mut builder = DynamicScoreSet::<f64, f64>::builder();
+
+    // Always add baseline metric
+    builder = builder.push(2.0, make_identity_metric("baseline"))?;
+
+    // Conditionally add optional metrics
+    let enable_extra = true;
+    if enable_extra {
+        builder = builder.push(1.0, make_identity_metric("extra_a"))?;
+        builder = builder.push(1.0, make_identity_metric("extra_b"))?;
+    }
+
+    let set = builder.build()?;
+    assert_eq!(set.len(), 3);
+    // Weights: 2/(2+1+1)=0.5, 1/4=0.25, 1/4=0.25
+    // At input=0.8: 0.5*0.8 + 0.25*0.8 + 0.25*0.8 = 0.8
+    let total = set.score(&0.8);
+    assert!((total - 0.8).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn builder_single_member() -> Result<(), &'static str> {
+    let set = DynamicScoreSet::<f64, f64>::builder()
+        .push(5.0, make_identity_metric("only"))?
+        .build()?;
+
+    // Single member: weight = 1.0
+    let total = set.score(&0.75);
+    assert!((total - 0.75).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn builder_empty_rejected() {
+    let result = DynamicScoreSet::<f64, f64>::builder().build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_zero_weight_rejected() {
+    let result = DynamicScoreSet::<f64, f64>::builder().push(0.0, make_identity_metric("bad"));
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_negative_weight_rejected() {
+    let result = DynamicScoreSet::<f64, f64>::builder().push(-1.0, make_identity_metric("bad"));
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_reuse_after_push() -> Result<(), &'static str> {
+    // Build a set, then start a new builder with the builder() constructor
+    let set1 = DynamicScoreSet::<f64, f64>::builder()
+        .push(1.0, make_identity_metric("a"))?
+        .build()?;
+
+    let set2 = DynamicScoreSet::<f64, f64>::builder()
+        .push(3.0, make_identity_metric("b"))?
+        .build()?;
+
+    // Weights: set1=1.0*input, set2=1.0*input
+    // At input=0.4: set1=0.4, set2=0.4
+    assert!((set1.score(&0.4) - 0.4).abs() < 1e-10);
+    assert!((set2.score(&0.4) - 0.4).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn builder_dna_context_example() -> Result<(), &'static str> {
+    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("gc_ratio")
+            .measure()
+            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+            .map01()
+            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
+    );
+
+    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("seq_len")
+            .measure()
+            .by(|ctx: &DnaContext| ctx.len as f64)
+            .map01()
+            .linear(100.0),
+    );
+
+    let set = DynamicScoreSet::<f64, DnaContext>::builder()
+        .push(2.0, gc)?
+        .push(1.0, len)?
+        .build()?;
+
+    let ctx = DnaContext::new("ACGTACGTACGT");
+    let total = set.score(&ctx);
+    assert!(total >= 0.0 && total <= 1.0);
+
+    Ok(())
+}

@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 /// A compile-time fixed weighted set of scoring operators with normalized
 /// weights.
 ///
-/// Construct via [`score_set!`](crate::score_set!) or
+/// Construct via [`fixed_score_set!`](crate::fixed_score_set!) or
 /// [`FixedScoreSet::normalize`]. Call [`.score()`](FixedScoreSet::score) to
 /// enter the scoring stage.
 pub struct FixedScoreSet<T: Float, Members> {
