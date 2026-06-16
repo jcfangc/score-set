@@ -284,6 +284,95 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
             })
             .collect()
     }
+
+    /// Create a builder for incremental construction of a `FiniteScoreSet`.
+    ///
+    /// Use this when members are not known up front — push them one by one,
+    /// then call [`.build()`](FiniteScoreSetBuilder::build) to finalize.
+    #[inline]
+    pub fn builder() -> FiniteScoreSetBuilder<T, I, E> {
+        FiniteScoreSetBuilder {
+            entries: Vec::new(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FiniteScoreSetBuilder — incremental builder for FiniteScoreSet
+// ---------------------------------------------------------------------------
+
+/// Incremental builder for [`FiniteScoreSet`].
+///
+/// Accumulates raw `(weight, variant)` pairs via [`.push()`](Self::push), then
+/// normalizes them into a [`FiniteScoreSet`] via [`.build()`](Self::build).
+///
+/// Each weight is validated on push (must be finite and > 0). Normalization
+/// happens once at build time.
+///
+/// # Examples
+///
+/// Chain construction:
+///
+/// ```ignore
+/// let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder()
+///     .push(2.0, TestKind::AlwaysZero(const_metric("zero", 0.0)))?
+///     .push(3.0, TestKind::AlwaysOne(const_metric("one", 1.0)))?
+///     .build()?;
+/// ```
+///
+/// Conditional construction:
+///
+/// ```ignore
+/// let mut builder = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder();
+/// builder = builder.push(2.0, baseline_variant)?;
+/// if enable_extra {
+///     builder = builder.push(1.0, extra_variant)?;
+/// }
+/// let set = builder.build()?;
+/// ```
+pub struct FiniteScoreSetBuilder<T: Float, I, E> {
+    entries: Vec<(T, E)>,
+    _phantom: PhantomData<I>,
+}
+
+impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSetBuilder<T, I, E> {
+    /// Push a metric enum variant with a raw weight into the builder.
+    ///
+    /// The weight must be finite and strictly positive. This is validated
+    /// immediately (fail-fast). Takes and returns `Self` for chaining.
+    ///
+    /// For incremental construction, rebind the result:
+    ///
+    /// ```ignore
+    /// let mut builder = FiniteScoreSet::builder();
+    /// builder = builder.push(2.0, variant_a)?;
+    /// if some_condition {
+    ///     builder = builder.push(1.0, variant_b)?;
+    /// }
+    /// let set = builder.build()?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `weight` is zero, negative, or not finite.
+    #[inline]
+    pub fn push(mut self, weight: T, variant: E) -> Result<Self, &'static str> {
+        GtZero::witness(weight)?;
+        self.entries.push((weight, variant));
+        Ok(self)
+    }
+
+    /// Consume the builder and produce a [`FiniteScoreSet`] with normalized
+    /// weights.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no members were pushed.
+    #[inline]
+    pub fn build(self) -> Result<FiniteScoreSet<T, I, E>, &'static str> {
+        FiniteScoreSet::new(self.entries)
+    }
 }
 
 #[cfg(test)]

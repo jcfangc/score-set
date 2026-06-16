@@ -450,3 +450,99 @@ fn finite_score_set_macro_with_breakdown() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// FiniteScoreSetBuilder tests
+// ===========================================================================
+
+#[test]
+fn finite_builder_chained_push() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder()
+        .push(
+            2.0,
+            TestKind::AlwaysZero(ConstMetric::<f64, &str>::new("zero", 0.0_f64)),
+        )?
+        .push(
+            3.0,
+            TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+        )?
+        .build()?;
+
+    assert_eq!(set.len(), 2);
+    // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
+    let total = set.score(&"x");
+    assert!((total - 0.6).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_builder_conditional_push() -> Result<(), &'static str> {
+    let mut builder = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder();
+
+    builder = builder.push(
+        2.0,
+        TestKind::AlwaysZero(ConstMetric::<f64, &str>::new("zero", 0.0_f64)),
+    )?;
+
+    let enable_extra = true;
+    if enable_extra {
+        builder = builder.push(
+            1.0,
+            TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+        )?;
+    }
+
+    let set = builder.build()?;
+    assert_eq!(set.len(), 2);
+    // Weights: 2/3≈0.667, 1/3≈0.333; Score = 0.667*0 + 0.333*1 = 0.333
+    let total = set.score(&"x");
+    assert!((total - 0.333).abs() < 0.001);
+
+    Ok(())
+}
+
+#[test]
+fn finite_builder_single_member() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder()
+        .push(
+            5.0,
+            TestKind::Half(ConstMetric::<f64, &str>::new("half", 0.5_f64)),
+        )?
+        .build()?;
+
+    // Single member: weight = 1.0, score = 0.5
+    let total = set.score(&"x");
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_builder_empty_rejected() {
+    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder().build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn finite_builder_zero_weight_rejected() {
+    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::builder().push(
+        0.0,
+        TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn finite_builder_concrete_form() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::builder()
+        .push(2.0, ConcreteKind::Zero(ConstMetric::new("zero", 0.0_f64)))?
+        .push(3.0, ConcreteKind::One(ConstMetric::new("one", 1.0_f64)))?
+        .build()?;
+
+    // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
+    let total = set.score(&"x");
+    assert!((total - 0.6).abs() < 1e-10);
+
+    Ok(())
+}
