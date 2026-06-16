@@ -505,3 +505,93 @@ fn dynamic_score_set_macro_dna_example() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// .breakdown() tests
+// ===========================================================================
+
+#[test]
+fn breakdown_basic() -> Result<(), &'static str> {
+    let set = DynamicScoreSet::<f64, f64>::new(vec![
+        (2.0, make_identity_metric("a")),
+        (3.0, make_identity_metric("b")),
+    ])?;
+
+    let rows = set.breakdown(&0.5);
+    assert_eq!(rows.len(), 2);
+
+    // Names
+    assert_eq!(rows[0].name, "a");
+    assert_eq!(rows[1].name, "b");
+
+    // Both metrics are identity clamps, so score(0.5) = 0.5
+    assert!((rows[0].score - 0.5).abs() < 1e-10);
+    assert!((rows[1].score - 0.5).abs() < 1e-10);
+
+    // Weights: 0.4, 0.6
+    assert!((rows[0].weight - 0.4).abs() < 1e-10);
+    assert!((rows[1].weight - 0.6).abs() < 1e-10);
+
+    // Contributions: 0.4*0.5=0.2, 0.6*0.5=0.3
+    assert!((rows[0].contribution - 0.2).abs() < 1e-10);
+    assert!((rows[1].contribution - 0.3).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
+    let set = DynamicScoreSet::<f64, f64>::new(vec![
+        (1.0, make_identity_metric("a")),
+        (2.0, make_identity_metric("b")),
+        (3.0, make_identity_metric("c")),
+    ])?;
+
+    let rows = set.breakdown(&0.8);
+    let sum_contributions: f64 = rows.iter().map(|r| r.contribution).sum();
+    let total = set.score(&0.8);
+
+    assert!((sum_contributions - total).abs() < 1e-10);
+    Ok(())
+}
+
+#[test]
+fn breakdown_dna_example() -> Result<(), &'static str> {
+    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("gc_ratio")
+            .measure()
+            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+            .map01()
+            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
+    );
+    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("seq_len")
+            .measure()
+            .by(|ctx: &DnaContext| ctx.len as f64)
+            .map01()
+            .linear(100.0),
+    );
+
+    let set = DynamicScoreSet::<f64, DnaContext>::new(vec![(2.0, gc), (1.0, len)])?;
+    let ctx = DnaContext::new("ACGTACGTACGT");
+    let rows = set.breakdown(&ctx);
+
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "gc_ratio");
+    assert_eq!(rows[1].name, "seq_len");
+
+    // Weights: 2/3 ≈ 0.667, 1/3 ≈ 0.333
+    assert!((rows[0].weight + rows[1].weight - 1.0).abs() < 1e-10);
+
+    // Each score in [0, 1]
+    for row in &rows {
+        assert!(row.score >= 0.0 && row.score <= 1.0);
+    }
+
+    // Sum of contributions matches total
+    let total = set.score(&ctx);
+    let sum: f64 = rows.iter().map(|r| r.contribution).sum();
+    assert!((sum - total).abs() < 1e-10);
+
+    Ok(())
+}

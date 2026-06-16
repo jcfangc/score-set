@@ -11,7 +11,7 @@
 //! | Layer | Type | Dispatch | When to use |
 //! |---|---|---|---|
 //! | 1 — fixed | [`FixedScoreSet`] via [`fixed_score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
-//! | 2 — finite | [`FiniteScoreSet`] via [`finite_metric!`] | Enum match, zero vtable | Runtime composition, known metric types |
+//! | 2 — finite | [`FiniteScoreSet`] via [`finite_score_set!`] | Enum match, zero vtable | Runtime composition, known metric types |
 //! | 3 — dynamic | [`DynamicScoreSet`] via [`dynamic_score_set!`] | Vtable per call | Fully heterogeneous, runtime assembly |
 //!
 //! # Quick example (Layer 1 — fixed)
@@ -42,6 +42,7 @@
 //! # Ok::<(), &'static str>(())
 //! ```
 
+mod breakdown;
 mod dynamic;
 mod finite;
 mod fixed;
@@ -53,6 +54,7 @@ mod metric;
 mod value;
 
 // Public API
+pub use breakdown::Breakdown;
 pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder};
 pub use finite::{FiniteMember, FiniteScoreSet};
 pub use fixed::{FixedScoreSet, ScoreStage};

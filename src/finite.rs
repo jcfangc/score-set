@@ -118,6 +118,7 @@ macro_rules! finite_metric {
 // FiniteScoreSet — weighted set with finite-enum dispatch (Layer 2)
 // ===========================================================================
 
+use crate::breakdown::Breakdown;
 use crate::dynamic::DynMetric;
 use crate::float::Float;
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
@@ -260,6 +261,28 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &FiniteMember<T, E>> {
         self.members.iter()
+    }
+
+    /// Evaluate all metrics against `input` and return a per-metric breakdown.
+    ///
+    /// Unlike [`.score()`](Self::score) which returns only the aggregate,
+    /// `breakdown` returns one [`Breakdown`] row per member with the metric's
+    /// name, raw score, normalized weight, and weighted contribution.
+    #[inline]
+    pub fn breakdown(&self, input: &I) -> Vec<Breakdown<'_, T>> {
+        self.members
+            .iter()
+            .map(|m| {
+                let score_witness = m.metric.eval(input);
+                let score_val: T = *score_witness;
+                Breakdown {
+                    name: m.metric.name(),
+                    score: score_val,
+                    weight: m.weight.into_inner(),
+                    contribution: m.contribute(score_witness),
+                }
+            })
+            .collect()
     }
 }
 

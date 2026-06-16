@@ -280,3 +280,173 @@ fn concrete_form_in_finite_score_set() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// .breakdown() tests
+// ===========================================================================
+
+#[test]
+fn finite_breakdown_basic() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+        (2.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
+        (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
+    ])?;
+
+    let rows = set.breakdown(&"x");
+    assert_eq!(rows.len(), 2);
+
+    assert_eq!(rows[0].name, "zero");
+    assert_eq!(rows[1].name, "one");
+
+    // Scores: zero → 0.0, one → 1.0
+    assert!((rows[0].score - 0.0).abs() < 1e-10);
+    assert!((rows[1].score - 1.0).abs() < 1e-10);
+
+    // Weights: 0.4, 0.6
+    assert!((rows[0].weight - 0.4).abs() < 1e-10);
+    assert!((rows[1].weight - 0.6).abs() < 1e-10);
+
+    // Contributions: 0.4*0=0, 0.6*1=0.6
+    assert!((rows[0].contribution - 0.0).abs() < 1e-10);
+    assert!((rows[1].contribution - 0.6).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+        (1.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
+        (1.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
+        (1.0, TestKind::Half(ConstMetric::new("half", 0.5))),
+    ])?;
+
+    let rows = set.breakdown(&"x");
+    let sum_contributions: f64 = rows.iter().map(|r| r.contribution).sum();
+    let total = set.score(&"x");
+
+    assert!((sum_contributions - total).abs() < 1e-10);
+    Ok(())
+}
+
+#[test]
+fn finite_breakdown_concrete_form() -> Result<(), &'static str> {
+    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::new(vec![
+        (2.0, ConcreteKind::Zero(ConstMetric::new("zero", 0.0))),
+        (3.0, ConcreteKind::One(ConstMetric::new("one", 1.0))),
+    ])?;
+
+    let rows = set.breakdown(&"x");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "zero");
+    assert_eq!(rows[1].name, "one");
+
+    // Sum matches score
+    let total = set.score(&"x");
+    let sum: f64 = rows.iter().map(|r| r.contribution).sum();
+    assert!((sum - total).abs() < 1e-10);
+
+    Ok(())
+}
+
+// ===========================================================================
+// finite_score_set! macro tests
+// ===========================================================================
+
+#[test]
+fn finite_score_set_macro_basic() -> Result<(), &'static str> {
+    let set = finite_score_set! {
+        2.0 => TestKind::AlwaysZero(ConstMetric::<f64, &str>::new("zero", 0.0_f64)),
+        3.0 => TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+    }?;
+
+    assert_eq!(set.len(), 2);
+    // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
+    let total = set.score(&"x");
+    assert!((total - 0.6).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_score_set_macro_single_member() -> Result<(), &'static str> {
+    let set = finite_score_set! {
+        5.0 => TestKind::Half(ConstMetric::<f64, &str>::new("half", 0.5_f64)),
+    }?;
+
+    // Single member: weight = 1.0, score = 1.0 * 0.5 = 0.5
+    let total = set.score(&"x");
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_score_set_macro_trailing_comma() -> Result<(), &'static str> {
+    let set = finite_score_set! {
+        1.0 => TestKind::AlwaysZero(ConstMetric::<f64, &str>::new("zero", 0.0_f64)),
+        1.0 => TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+    }?;
+
+    // Each weight = 0.5; total = 0.5*0 + 0.5*1 = 0.5
+    let total = set.score(&"x");
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_score_set_macro_empty_rejected() {
+    let result: Result<FiniteScoreSet<f64, &str, TestKind<f64, &str>>, _> = finite_score_set! {};
+    assert!(result.is_err());
+}
+
+#[test]
+fn finite_score_set_macro_zero_weight_rejected() {
+    let result = finite_score_set! {
+        0.0 => TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+    };
+    assert!(result.is_err());
+}
+
+#[test]
+fn finite_score_set_macro_negative_weight_rejected() {
+    let result = finite_score_set! {
+        -1.0 => TestKind::AlwaysOne(ConstMetric::<f64, &str>::new("one", 1.0_f64)),
+    };
+    assert!(result.is_err());
+}
+
+#[test]
+fn finite_score_set_macro_concrete_form() -> Result<(), &'static str> {
+    let set = finite_score_set! {
+        2.0 => ConcreteKind::Zero(ConstMetric::new("zero", 0.0)),
+        3.0 => ConcreteKind::One(ConstMetric::new("one", 1.0)),
+    }?;
+
+    // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
+    let total = set.score(&"x");
+    assert!((total - 0.6).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn finite_score_set_macro_with_breakdown() -> Result<(), &'static str> {
+    let set = finite_score_set! {
+        2.0 => TestKind::AlwaysZero(ConstMetric::new("zero", 0.0)),
+        3.0 => TestKind::AlwaysOne(ConstMetric::new("one", 1.0)),
+    }?;
+
+    let rows = set.breakdown(&"x");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "zero");
+    assert_eq!(rows[1].name, "one");
+
+    // Sum matches
+    let total = set.score(&"x");
+    let sum: f64 = rows.iter().map(|r| r.contribution).sum();
+    assert!((sum - total).abs() < 1e-10);
+
+    Ok(())
+}

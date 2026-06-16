@@ -77,6 +77,7 @@ impl<T: Float, I> DynMetric<T, I> for Box<dyn DynMetric<T, I>> {
 // DynamicScoreSet — fully dynamic scoring set (Layer 3)
 // ===========================================================================
 
+use crate::breakdown::Breakdown;
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight};
 use core::marker::PhantomData;
 use witnessed::WitnessExt;
@@ -215,6 +216,37 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &DynamicMember<T, I>> {
         self.members.iter()
+    }
+
+    /// Evaluate all metrics against `input` and return a per-metric breakdown.
+    ///
+    /// Unlike [`.score()`](Self::score) which returns only the aggregate,
+    /// `breakdown` returns one [`Breakdown`] row per member with the metric's
+    /// name, raw score, normalized weight, and weighted contribution.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// for row in set.breakdown(&ctx) {
+    ///     println!("{}: {:.3} × {:.3} = {:.3}",
+    ///         row.name, row.score, row.weight, row.contribution);
+    /// }
+    /// ```
+    #[inline]
+    pub fn breakdown(&self, input: &I) -> Vec<Breakdown<'_, T>> {
+        self.members
+            .iter()
+            .map(|m| {
+                let score_witness = m.metric.eval(input);
+                let score_val: T = *score_witness;
+                Breakdown {
+                    name: m.metric.name(),
+                    score: score_val,
+                    weight: m.weight.into_inner(),
+                    contribution: m.contribute(score_witness),
+                }
+            })
+            .collect()
     }
 
     /// Create a builder for incremental construction of a `DynamicScoreSet`.
