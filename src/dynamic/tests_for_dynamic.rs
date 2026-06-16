@@ -382,3 +382,126 @@ fn builder_dna_context_example() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+// ===========================================================================
+// dynamic_score_set! macro tests
+// ===========================================================================
+
+#[test]
+fn dynamic_score_set_macro_basic() -> Result<(), &'static str> {
+    let set = dynamic_score_set! {
+        2.0 => make_identity_metric("a"),
+        3.0 => make_identity_metric("b"),
+    }?;
+
+    assert_eq!(set.len(), 2);
+    // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
+    let total = set.score(&0.5);
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dynamic_score_set_macro_single_member() -> Result<(), &'static str> {
+    let set = dynamic_score_set! {
+        5.0 => make_identity_metric("only"),
+    }?;
+
+    // Single member: weight = 1.0
+    let total = set.score(&0.75);
+    assert!((total - 0.75).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dynamic_score_set_macro_trailing_comma() -> Result<(), &'static str> {
+    let set = dynamic_score_set! {
+        1.0 => make_identity_metric("a"),
+        1.0 => make_identity_metric("b"),
+    }?;
+
+    // Each weight = 0.5; at input=1.0: 0.5*1.0 + 0.5*1.0 = 1.0
+    let total = set.score(&1.0);
+    assert!((total - 1.0).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dynamic_score_set_macro_empty_rejected() {
+    let result: Result<DynamicScoreSet<f64, f64>, _> = dynamic_score_set! {};
+    assert!(result.is_err());
+}
+
+#[test]
+fn dynamic_score_set_macro_zero_weight_rejected() {
+    let result = dynamic_score_set! {
+        0.0 => make_identity_metric("bad"),
+    };
+    assert!(result.is_err());
+}
+
+#[test]
+fn dynamic_score_set_macro_negative_weight_rejected() {
+    let result = dynamic_score_set! {
+        -1.0 => make_identity_metric("bad"),
+    };
+    assert!(result.is_err());
+}
+
+#[test]
+fn dynamic_score_set_macro_with_boxed_metrics() -> Result<(), &'static str> {
+    // Use .boxed() on real Metric types — the most common case
+    fn measure(x: &f64) -> f64 {
+        *x
+    }
+    fn map01(raw: &f64, _: &f64) -> Witnessed<f64, Value01> {
+        Value01::witness(raw.min(1.0).max(0.0)).unwrap()
+    }
+
+    let a = metric("a").measure().by(measure).map01().by(map01).boxed();
+    let b = metric("b").measure().by(measure).map01().by(map01).boxed();
+
+    let set = dynamic_score_set! {
+        2.0 => a,
+        3.0 => b,
+    }?;
+
+    // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
+    let total = set.score(&0.5);
+    assert!((total - 0.5).abs() < 1e-10);
+
+    Ok(())
+}
+
+#[test]
+fn dynamic_score_set_macro_dna_example() -> Result<(), &'static str> {
+    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("gc_ratio")
+            .measure()
+            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+            .map01()
+            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
+    );
+
+    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+        metric("seq_len")
+            .measure()
+            .by(|ctx: &DnaContext| ctx.len as f64)
+            .map01()
+            .linear(100.0),
+    );
+
+    let set = dynamic_score_set! {
+        2.0 => gc,
+        1.0 => len,
+    }?;
+
+    let ctx = DnaContext::new("ACGTACGTACGT");
+    let total = set.score(&ctx);
+    assert!(total >= 0.0 && total <= 1.0);
+
+    Ok(())
+}

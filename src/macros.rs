@@ -23,3 +23,32 @@ macro_rules! fixed_score_set {
         })()
     };
 }
+
+/// Declare a dynamic set of `weight => metric` pairs (Layer 3).
+///
+/// Each metric must be a `Box<dyn DynMetric<T, I>>` (via
+/// [`.boxed()`](crate::Metric::boxed) or `Box::new`). Weights are normalized
+/// and a [`DynamicScoreSet`](crate::DynamicScoreSet) is returned. The types
+/// `T` and `I` are inferred from the boxed metrics.
+///
+/// # Example
+///
+/// ```ignore
+/// let set = dynamic_score_set! {
+///     2.0 => gc_metric.boxed(),
+///     3.0 => len_metric.boxed(),
+/// }?;
+///
+/// let total = set.score(&input);
+/// ```
+#[macro_export]
+macro_rules! dynamic_score_set {
+    () => {
+        $crate::DynamicScoreSet::new(vec![])
+    };
+    ($($weight:expr => $metric:expr),+ $(,)?) => {
+        $crate::DynamicScoreSet::new(vec![
+            $(($weight, $metric)),+
+        ])
+    };
+}

@@ -12,7 +12,7 @@
 //! |---|---|---|---|
 //! | 1 — fixed | [`FixedScoreSet`] via [`fixed_score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
 //! | 2 — finite | [`FiniteScoreSet`] via [`finite_metric!`] | Enum match, zero vtable | Runtime composition, known metric types |
-//! | 3 — dynamic | [`DynamicScoreSet`] | Vtable per call | Fully heterogeneous, runtime assembly |
+//! | 3 — dynamic | [`DynamicScoreSet`] via [`dynamic_score_set!`] | Vtable per call | Fully heterogeneous, runtime assembly |
 //!
 //! # Quick example (Layer 1 — fixed)
 //!
@@ -57,7 +57,7 @@ pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuil
 pub use finite::{FiniteMember, FiniteScoreSet};
 pub use fixed::{FixedScoreSet, ScoreStage};
 pub use float::Float;
-// fixed_score_set! and finite_metric! are exported at crate root via #[macro_export]
+// fixed_score_set!, dynamic_score_set!, and finite_metric! are exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
 pub use metric::{Metric, metric};
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
