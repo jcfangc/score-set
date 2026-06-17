@@ -75,21 +75,27 @@ fn dyn_metric_different_input_types() -> Result<(), &'static str> {
 // DynamicScoreSet tests
 // ===========================================================================
 
-fn make_identity_metric(name: &'static str) -> Box<dyn DynMetric<f64, f64>> {
+type IdMetric = Metric<f64, f64, f64, fn(&f64) -> f64, fn(&f64, &f64) -> Witnessed<f64, Value01>>;
+
+fn make_identity_metric(name: &'static str) -> IdMetric {
     fn measure(x: &f64) -> f64 {
         *x
     }
     fn map01(raw: &f64, _: &f64) -> Witnessed<f64, Value01> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
-    Box::new(metric(name).measure().by(measure).map01().by(map01))
+    metric(name)
+        .measure()
+        .by(measure as fn(&f64) -> f64)
+        .map01()
+        .by(map01 as fn(&f64, &f64) -> Witnessed<f64, Value01>)
 }
 
 #[test]
 fn dynamic_score_set_new_and_score() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![
-        (2.0, make_identity_metric("a")),
-        (3.0, make_identity_metric("b")),
+        (2.0, make_identity_metric("a").boxed()),
+        (3.0, make_identity_metric("b").boxed()),
     ])?;
 
     assert_eq!(set.len(), 2);
@@ -105,7 +111,7 @@ fn dynamic_score_set_new_and_score() -> Result<(), &'static str> {
 
 #[test]
 fn dynamic_score_set_single_member() -> Result<(), &'static str> {
-    let set = DynamicScoreSet::<f64, f64>::new(vec![(5.0, make_identity_metric("only"))])?;
+    let set = DynamicScoreSet::<f64, f64>::new(vec![(5.0, make_identity_metric("only").boxed())])?;
 
     // Single member: weight = 1.0
     let total = set.sum(&0.75);
@@ -117,8 +123,8 @@ fn dynamic_score_set_single_member() -> Result<(), &'static str> {
 #[test]
 fn dynamic_score_set_equal_weights() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![
-        (1.0, make_identity_metric("a")),
-        (1.0, make_identity_metric("b")),
+        (1.0, make_identity_metric("a").boxed()),
+        (1.0, make_identity_metric("b").boxed()),
     ])?;
 
     // Each weight = 0.5; at input=1.0: 0.5*1.0 + 0.5*1.0 = 1.0
@@ -136,13 +142,14 @@ fn dynamic_score_set_empty_rejected() {
 
 #[test]
 fn dynamic_score_set_zero_weight_rejected() {
-    let result = DynamicScoreSet::<f64, f64>::new(vec![(0.0, make_identity_metric("bad"))]);
+    let result = DynamicScoreSet::<f64, f64>::new(vec![(0.0, make_identity_metric("bad").boxed())]);
     assert!(result.is_err());
 }
 
 #[test]
 fn dynamic_score_set_negative_weight_rejected() {
-    let result = DynamicScoreSet::<f64, f64>::new(vec![(-1.0, make_identity_metric("bad"))]);
+    let result =
+        DynamicScoreSet::<f64, f64>::new(vec![(-1.0, make_identity_metric("bad").boxed())]);
     assert!(result.is_err());
 }
 
@@ -170,7 +177,7 @@ fn dynamic_score_set_f32() -> Result<(), &'static str> {
 
 #[test]
 fn dynamic_score_set_clamped_input() -> Result<(), &'static str> {
-    let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, make_identity_metric("clamp"))])?;
+    let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, make_identity_metric("clamp").boxed())])?;
 
     // Identity metric clamps to [0, 1]
     assert!((set.sum(&1.5) - 1.0).abs() < 1e-10);
@@ -182,8 +189,8 @@ fn dynamic_score_set_clamped_input() -> Result<(), &'static str> {
 #[test]
 fn dynamic_score_set_iter() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![
-        (1.0, make_identity_metric("first")),
-        (1.0, make_identity_metric("second")),
+        (1.0, make_identity_metric("first").boxed()),
+        (1.0, make_identity_metric("second").boxed()),
     ])?;
 
     let names: Vec<&str> = set.iter().map(|m| m.metric().name()).collect();
@@ -195,8 +202,8 @@ fn dynamic_score_set_iter() -> Result<(), &'static str> {
 #[test]
 fn dynamic_score_set_heterogeneous_metrics() -> Result<(), &'static str> {
     // Mix different metric types — the whole point of DynamicScoreSet.
-    let a: Box<dyn DynMetric<f64, f64>> = make_identity_metric("a");
-    let b: Box<dyn DynMetric<f64, f64>> = make_identity_metric("b");
+    let a: Box<dyn DynMetric<f64, f64>> = make_identity_metric("a").boxed();
+    let b: Box<dyn DynMetric<f64, f64>> = make_identity_metric("b").boxed();
 
     let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, a), (2.0, b)])?;
 
@@ -228,23 +235,19 @@ impl<'a> DnaContext<'a> {
 
 #[test]
 fn dynamic_score_set_dna_example() -> Result<(), &'static str> {
-    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("gc_ratio")
-            .measure()
-            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
-            .map01()
-            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
-    );
+    let gc = metric("gc_ratio")
+        .measure()
+        .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+        .map01()
+        .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap());
 
-    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("seq_len")
-            .measure()
-            .by(|ctx: &DnaContext| ctx.len as f64)
-            .map01()
-            .linear(100.0),
-    );
+    let len = metric("seq_len")
+        .measure()
+        .by(|ctx: &DnaContext| ctx.len as f64)
+        .map01()
+        .linear(100.0);
 
-    let set = DynamicScoreSet::<f64, DnaContext>::new(vec![(2.0, gc), (1.0, len)])?;
+    let set = DynamicScoreSet::<f64, DnaContext>::new(vec![(2.0, gc.boxed()), (1.0, len.boxed())])?;
 
     let ctx = DnaContext::new("ACGTACGTACGT");
     let total = set.sum(&ctx);
@@ -267,8 +270,8 @@ fn dynamic_score_set_dna_example() -> Result<(), &'static str> {
 #[test]
 fn builder_chained_push() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::builder()
-        .push(2.0, make_identity_metric("a"))?
-        .push(3.0, make_identity_metric("b"))?
+        .push(2.0, make_identity_metric("a").boxed())?
+        .push(3.0, make_identity_metric("b").boxed())?
         .build()?;
 
     assert_eq!(set.len(), 2);
@@ -284,13 +287,13 @@ fn builder_conditional_push() -> Result<(), &'static str> {
     let mut builder = DynamicScoreSet::<f64, f64>::builder();
 
     // Always add baseline metric
-    builder = builder.push(2.0, make_identity_metric("baseline"))?;
+    builder = builder.push(2.0, make_identity_metric("baseline").boxed())?;
 
     // Conditionally add optional metrics
     let enable_extra = true;
     if enable_extra {
-        builder = builder.push(1.0, make_identity_metric("extra_a"))?;
-        builder = builder.push(1.0, make_identity_metric("extra_b"))?;
+        builder = builder.push(1.0, make_identity_metric("extra_a").boxed())?;
+        builder = builder.push(1.0, make_identity_metric("extra_b").boxed())?;
     }
 
     let set = builder.build()?;
@@ -306,7 +309,7 @@ fn builder_conditional_push() -> Result<(), &'static str> {
 #[test]
 fn builder_single_member() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::builder()
-        .push(5.0, make_identity_metric("only"))?
+        .push(5.0, make_identity_metric("only").boxed())?
         .build()?;
 
     // Single member: weight = 1.0
@@ -324,13 +327,15 @@ fn builder_empty_rejected() {
 
 #[test]
 fn builder_zero_weight_rejected() {
-    let result = DynamicScoreSet::<f64, f64>::builder().push(0.0, make_identity_metric("bad"));
+    let result =
+        DynamicScoreSet::<f64, f64>::builder().push(0.0, make_identity_metric("bad").boxed());
     assert!(result.is_err());
 }
 
 #[test]
 fn builder_negative_weight_rejected() {
-    let result = DynamicScoreSet::<f64, f64>::builder().push(-1.0, make_identity_metric("bad"));
+    let result =
+        DynamicScoreSet::<f64, f64>::builder().push(-1.0, make_identity_metric("bad").boxed());
     assert!(result.is_err());
 }
 
@@ -338,11 +343,11 @@ fn builder_negative_weight_rejected() {
 fn builder_reuse_after_push() -> Result<(), &'static str> {
     // Build a set, then start a new builder with the builder() constructor
     let set1 = DynamicScoreSet::<f64, f64>::builder()
-        .push(1.0, make_identity_metric("a"))?
+        .push(1.0, make_identity_metric("a").boxed())?
         .build()?;
 
     let set2 = DynamicScoreSet::<f64, f64>::builder()
-        .push(3.0, make_identity_metric("b"))?
+        .push(3.0, make_identity_metric("b").boxed())?
         .build()?;
 
     // Weights: set1=1.0*input, set2=1.0*input
@@ -355,25 +360,21 @@ fn builder_reuse_after_push() -> Result<(), &'static str> {
 
 #[test]
 fn builder_dna_context_example() -> Result<(), &'static str> {
-    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("gc_ratio")
-            .measure()
-            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
-            .map01()
-            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
-    );
+    let gc = metric("gc_ratio")
+        .measure()
+        .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+        .map01()
+        .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap());
 
-    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("seq_len")
-            .measure()
-            .by(|ctx: &DnaContext| ctx.len as f64)
-            .map01()
-            .linear(100.0),
-    );
+    let len = metric("seq_len")
+        .measure()
+        .by(|ctx: &DnaContext| ctx.len as f64)
+        .map01()
+        .linear(100.0);
 
     let set = DynamicScoreSet::<f64, DnaContext>::builder()
-        .push(2.0, gc)?
-        .push(1.0, len)?
+        .push(2.0, gc.boxed())?
+        .push(1.0, len.boxed())?
         .build()?;
 
     let ctx = DnaContext::new("ACGTACGTACGT");
@@ -461,8 +462,16 @@ fn dynamic_score_set_macro_with_boxed_metrics() -> Result<(), &'static str> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
 
-    let a = metric("a").measure().by(measure).map01().by(map01).boxed();
-    let b = metric("b").measure().by(measure).map01().by(map01).boxed();
+    let a = metric("a")
+        .measure()
+        .by(measure as fn(&f64) -> f64)
+        .map01()
+        .by(map01 as fn(&f64, &f64) -> Witnessed<f64, Value01>);
+    let b = metric("b")
+        .measure()
+        .by(measure as fn(&f64) -> f64)
+        .map01()
+        .by(map01 as fn(&f64, &f64) -> Witnessed<f64, Value01>);
 
     let set = dynamic_score_set! {
         2.0 => a,
@@ -478,21 +487,17 @@ fn dynamic_score_set_macro_with_boxed_metrics() -> Result<(), &'static str> {
 
 #[test]
 fn dynamic_score_set_macro_dna_example() -> Result<(), &'static str> {
-    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("gc_ratio")
-            .measure()
-            .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
-            .map01()
-            .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
-    );
+    let gc = metric("gc_ratio")
+        .measure()
+        .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
+        .map01()
+        .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap());
 
-    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
-        metric("seq_len")
-            .measure()
-            .by(|ctx: &DnaContext| ctx.len as f64)
-            .map01()
-            .linear(100.0),
-    );
+    let len = metric("seq_len")
+        .measure()
+        .by(|ctx: &DnaContext| ctx.len as f64)
+        .map01()
+        .linear(100.0);
 
     let set = dynamic_score_set! {
         2.0 => gc,
@@ -513,8 +518,8 @@ fn dynamic_score_set_macro_dna_example() -> Result<(), &'static str> {
 #[test]
 fn breakdown_basic() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![
-        (2.0, make_identity_metric("a")),
-        (3.0, make_identity_metric("b")),
+        (2.0, make_identity_metric("a").boxed()),
+        (3.0, make_identity_metric("b").boxed()),
     ])?;
 
     let rows = set.breakdown(&0.5);
@@ -542,9 +547,9 @@ fn breakdown_basic() -> Result<(), &'static str> {
 #[test]
 fn breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![
-        (1.0, make_identity_metric("a")),
-        (2.0, make_identity_metric("b")),
-        (3.0, make_identity_metric("c")),
+        (1.0, make_identity_metric("a").boxed()),
+        (2.0, make_identity_metric("b").boxed()),
+        (3.0, make_identity_metric("c").boxed()),
     ])?;
 
     let rows = set.breakdown(&0.8);
