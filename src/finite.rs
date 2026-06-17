@@ -185,7 +185,7 @@ impl<T: Float, E> FiniteMember<T, E> {
 ///     (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
 /// ])?;
 ///
-/// let total = set.score(&"input");
+/// let total = set.sum(&"input");
 /// // total = 0.4 * 0 + 0.6 * 1 = 0.6
 /// ```
 pub struct FiniteScoreSet<T: Float, I, E> {
@@ -237,12 +237,37 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
     /// Evaluate all metrics against `input` and sum their weighted contributions.
     ///
     /// This is the most common aggregation: each metric is evaluated, multiplied
-    /// by its normalized weight, and summed.
+    /// by its normalized weight, and summed. Zero-allocation convenience.
+    ///
+    /// For custom aggregation, use [`.score()`](Self::score) instead.
     #[inline]
-    pub fn score(&self, input: &I) -> T {
+    pub fn sum(&self, input: &I) -> T {
         self.members
             .iter()
             .fold(T::zero(), |acc, m| acc + m.contribute(m.metric.eval(input)))
+    }
+
+    /// Enter the scoring stage, returning a reference to all members.
+    ///
+    /// Use [`.by()`](FiniteScoreStage::by) on the returned stage to apply a
+    /// custom aggregation, or [`.sum()`](Self::sum) for the standard
+    /// weighted-sum shortcut.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let total = set.score().by(|members| {
+    ///     members.iter().fold(0.0, |acc, m| {
+    ///         acc + m.contribute(m.metric().eval(&input))
+    ///     })
+    /// });
+    /// ```
+    #[inline]
+    pub fn score(&self) -> FiniteScoreStage<'_, T, I, E> {
+        FiniteScoreStage {
+            members: &self.members,
+            _phantom: PhantomData,
+        }
     }
 
     /// Return the number of members in this set.
@@ -265,7 +290,7 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
 
     /// Evaluate all metrics against `input` and return a per-metric breakdown.
     ///
-    /// Unlike [`.score()`](Self::score) which returns only the aggregate,
+    /// Unlike [`.sum()`](Self::sum) which returns only the aggregate,
     /// `breakdown` returns one [`Breakdown`] row per member with the metric's
     /// name, raw score, normalized weight, and weighted contribution.
     #[inline]
@@ -295,6 +320,57 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
             entries: Vec::new(),
             _phantom: PhantomData,
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FiniteScoreStage — member reference for custom aggregation (Layer 2)
+// ---------------------------------------------------------------------------
+
+/// The scoring stage for a [`FiniteScoreSet`], created by
+/// [`FiniteScoreSet::score`].
+///
+/// Holds a reference to the set's members. Call
+/// [`.by()`](FiniteScoreStage::by) to apply a custom aggregation over the
+/// member slice. For the standard weighted-sum shortcut, use
+/// [`FiniteScoreSet::sum`] instead.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Standard weighted sum via the stage:
+/// let total = set.score().by(|members| {
+///     members.iter().fold(0.0, |acc, m| {
+///         acc + m.contribute(m.metric().eval(&input))
+///     })
+/// });
+///
+/// // Custom: use only the worst contribution
+/// let worst = set.score().by(|members| {
+///     members.iter().map(|m| {
+///         m.contribute(m.metric().eval(&input))
+///     }).fold(f64::INFINITY, f64::min)
+/// });
+/// ```
+pub struct FiniteScoreStage<'a, T: Float, I, E> {
+    members: &'a [FiniteMember<T, E>],
+    _phantom: PhantomData<I>,
+}
+
+impl<'a, T: Float, I, E: DynMetric<T, I>> FiniteScoreStage<'a, T, I, E> {
+    /// Apply a custom aggregation to the members.
+    ///
+    /// The closure receives a `&[FiniteMember<T, E>]` — one entry per member
+    /// in insertion order. Each [`FiniteMember`] provides
+    /// [`.metric()`](FiniteMember::metric) for evaluation and
+    /// [`.contribute()`](FiniteMember::contribute) for weighting. The closure
+    /// may return any type `R`.
+    #[inline]
+    pub fn by<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&[FiniteMember<T, E>]) -> R,
+    {
+        f(self.members)
     }
 }
 

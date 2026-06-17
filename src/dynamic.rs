@@ -144,7 +144,7 @@ impl<T: Float, I> DynamicMember<T, I> {
 ///     (3.0, len),
 /// ])?;
 ///
-/// let total = set.score(&"ACGTACGT");
+/// let total = set.sum(&"ACGTACGT");
 /// ```
 pub struct DynamicScoreSet<T: Float, I> {
     members: Vec<DynamicMember<T, I>>,
@@ -193,11 +193,36 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
     }
 
     /// Evaluate all metrics against `input` and sum their weighted contributions.
+    ///
+    /// Zero-allocation convenience for the most common aggregation.
+    /// For custom aggregation, use [`.score()`](Self::score) instead.
     #[inline]
-    pub fn score(&self, input: &I) -> T {
+    pub fn sum(&self, input: &I) -> T {
         self.members
             .iter()
             .fold(T::zero(), |acc, m| acc + m.contribute(m.metric.eval(input)))
+    }
+
+    /// Enter the scoring stage, returning a reference to all members.
+    ///
+    /// Use [`.by()`](DynamicScoreStage::by) on the returned stage to apply a
+    /// custom aggregation, or [`.sum()`](Self::sum) for the standard
+    /// weighted-sum shortcut.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let total = set.score().by(|members| {
+    ///     members.iter().fold(0.0, |acc, m| {
+    ///         acc + m.contribute(m.metric().eval(&input))
+    ///     })
+    /// });
+    /// ```
+    #[inline]
+    pub fn score(&self) -> DynamicScoreStage<'_, T, I> {
+        DynamicScoreStage {
+            members: &self.members,
+        }
     }
 
     /// Return the number of members in this set.
@@ -220,7 +245,7 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
 
     /// Evaluate all metrics against `input` and return a per-metric breakdown.
     ///
-    /// Unlike [`.score()`](Self::score) which returns only the aggregate,
+    /// Unlike [`.sum()`](Self::sum) which returns only the aggregate,
     /// `breakdown` returns one [`Breakdown`] row per member with the metric's
     /// name, raw score, normalized weight, and weighted contribution.
     ///
@@ -267,6 +292,56 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
         DynamicScoreSetBuilder {
             entries: Vec::new(),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DynamicScoreStage — member reference for custom aggregation (Layer 3)
+// ---------------------------------------------------------------------------
+
+/// The scoring stage for a [`DynamicScoreSet`], created by
+/// [`DynamicScoreSet::score`].
+///
+/// Holds a reference to the set's members. Call
+/// [`.by()`](DynamicScoreStage::by) to apply a custom aggregation over the
+/// member slice. For the standard weighted-sum shortcut, use
+/// [`DynamicScoreSet::sum`] instead.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Standard weighted sum via the stage:
+/// let total = set.score().by(|members| {
+///     members.iter().fold(0.0, |acc, m| {
+///         acc + m.contribute(m.metric().eval(&input))
+///     })
+/// });
+///
+/// // Custom: geometric mean of contributions
+/// let product = set.score().by(|members| {
+///     members.iter().map(|m| {
+///         m.contribute(m.metric().eval(&input))
+///     }).fold(1.0, |a, c| a * c)
+/// });
+/// ```
+pub struct DynamicScoreStage<'a, T: Float, I> {
+    members: &'a [DynamicMember<T, I>],
+}
+
+impl<'a, T: Float, I> DynamicScoreStage<'a, T, I> {
+    /// Apply a custom aggregation to the members.
+    ///
+    /// The closure receives a `&[DynamicMember<T, I>]` — one entry per member
+    /// in insertion order. Each [`DynamicMember`] provides
+    /// [`.metric()`](DynamicMember::metric) for evaluation and
+    /// [`.contribute()`](DynamicMember::contribute) for weighting. The closure
+    /// may return any type `R`.
+    #[inline]
+    pub fn by<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&[DynamicMember<T, I>]) -> R,
+    {
+        f(self.members)
     }
 }
 

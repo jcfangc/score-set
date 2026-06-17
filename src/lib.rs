@@ -55,8 +55,10 @@ mod value;
 
 // Public API
 pub use breakdown::Breakdown;
-pub use dynamic::{DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder};
-pub use finite::{FiniteMember, FiniteScoreSet, FiniteScoreSetBuilder};
+pub use dynamic::{
+    DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder, DynamicScoreStage,
+};
+pub use finite::{FiniteMember, FiniteScoreSet, FiniteScoreSetBuilder, FiniteScoreStage};
 pub use fixed::{FixedScoreSet, ScoreStage};
 pub use float::Float;
 // fixed_score_set!, dynamic_score_set!, and finite_metric! are exported at crate root via #[macro_export]

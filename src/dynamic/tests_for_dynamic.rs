@@ -97,7 +97,7 @@ fn dynamic_score_set_new_and_score() -> Result<(), &'static str> {
 
     // Normalized weights: 0.4, 0.6
     // At input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
-    let total = set.score(&0.5);
+    let total = set.sum(&0.5);
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -108,7 +108,7 @@ fn dynamic_score_set_single_member() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![(5.0, make_identity_metric("only"))])?;
 
     // Single member: weight = 1.0
-    let total = set.score(&0.75);
+    let total = set.sum(&0.75);
     assert!((total - 0.75).abs() < 1e-10);
 
     Ok(())
@@ -122,7 +122,7 @@ fn dynamic_score_set_equal_weights() -> Result<(), &'static str> {
     ])?;
 
     // Each weight = 0.5; at input=1.0: 0.5*1.0 + 0.5*1.0 = 1.0
-    let total = set.score(&1.0);
+    let total = set.sum(&1.0);
     assert!((total - 1.0).abs() < 1e-10);
 
     Ok(())
@@ -162,7 +162,7 @@ fn dynamic_score_set_f32() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f32, f32>::new(vec![(1.0, a), (3.0, b)])?;
 
     // Weights: 0.25, 0.75; at input=0.5: 0.25*0.5 + 0.75*0.5 = 0.5
-    let total = set.score(&0.5_f32);
+    let total = set.sum(&0.5_f32);
     assert!((total - 0.5_f32).abs() < 1e-6);
 
     Ok(())
@@ -173,8 +173,8 @@ fn dynamic_score_set_clamped_input() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, make_identity_metric("clamp"))])?;
 
     // Identity metric clamps to [0, 1]
-    assert!((set.score(&1.5) - 1.0).abs() < 1e-10);
-    assert!((set.score(&-0.5) - 0.0).abs() < 1e-10);
+    assert!((set.sum(&1.5) - 1.0).abs() < 1e-10);
+    assert!((set.sum(&-0.5) - 0.0).abs() < 1e-10);
 
     Ok(())
 }
@@ -201,7 +201,7 @@ fn dynamic_score_set_heterogeneous_metrics() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, f64>::new(vec![(1.0, a), (2.0, b)])?;
 
     // Weights: 1/3, 2/3; at input=0.6: 1/3*0.6 + 2/3*0.6 = 0.6
-    let total = set.score(&0.6);
+    let total = set.sum(&0.6);
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -247,7 +247,7 @@ fn dynamic_score_set_dna_example() -> Result<(), &'static str> {
     let set = DynamicScoreSet::<f64, DnaContext>::new(vec![(2.0, gc), (1.0, len)])?;
 
     let ctx = DnaContext::new("ACGTACGTACGT");
-    let total = set.score(&ctx);
+    let total = set.sum(&ctx);
     assert!(total >= 0.0 && total <= 1.0);
 
     // Inspect individual contributions
@@ -273,7 +273,7 @@ fn builder_chained_push() -> Result<(), &'static str> {
 
     assert_eq!(set.len(), 2);
     // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
-    let total = set.score(&0.5);
+    let total = set.sum(&0.5);
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -297,7 +297,7 @@ fn builder_conditional_push() -> Result<(), &'static str> {
     assert_eq!(set.len(), 3);
     // Weights: 2/(2+1+1)=0.5, 1/4=0.25, 1/4=0.25
     // At input=0.8: 0.5*0.8 + 0.25*0.8 + 0.25*0.8 = 0.8
-    let total = set.score(&0.8);
+    let total = set.sum(&0.8);
     assert!((total - 0.8).abs() < 1e-10);
 
     Ok(())
@@ -310,7 +310,7 @@ fn builder_single_member() -> Result<(), &'static str> {
         .build()?;
 
     // Single member: weight = 1.0
-    let total = set.score(&0.75);
+    let total = set.sum(&0.75);
     assert!((total - 0.75).abs() < 1e-10);
 
     Ok(())
@@ -347,8 +347,8 @@ fn builder_reuse_after_push() -> Result<(), &'static str> {
 
     // Weights: set1=1.0*input, set2=1.0*input
     // At input=0.4: set1=0.4, set2=0.4
-    assert!((set1.score(&0.4) - 0.4).abs() < 1e-10);
-    assert!((set2.score(&0.4) - 0.4).abs() < 1e-10);
+    assert!((set1.sum(&0.4) - 0.4).abs() < 1e-10);
+    assert!((set2.sum(&0.4) - 0.4).abs() < 1e-10);
 
     Ok(())
 }
@@ -377,7 +377,7 @@ fn builder_dna_context_example() -> Result<(), &'static str> {
         .build()?;
 
     let ctx = DnaContext::new("ACGTACGTACGT");
-    let total = set.score(&ctx);
+    let total = set.sum(&ctx);
     assert!(total >= 0.0 && total <= 1.0);
 
     Ok(())
@@ -396,7 +396,7 @@ fn dynamic_score_set_macro_basic() -> Result<(), &'static str> {
 
     assert_eq!(set.len(), 2);
     // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
-    let total = set.score(&0.5);
+    let total = set.sum(&0.5);
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -409,7 +409,7 @@ fn dynamic_score_set_macro_single_member() -> Result<(), &'static str> {
     }?;
 
     // Single member: weight = 1.0
-    let total = set.score(&0.75);
+    let total = set.sum(&0.75);
     assert!((total - 0.75).abs() < 1e-10);
 
     Ok(())
@@ -423,7 +423,7 @@ fn dynamic_score_set_macro_trailing_comma() -> Result<(), &'static str> {
     }?;
 
     // Each weight = 0.5; at input=1.0: 0.5*1.0 + 0.5*1.0 = 1.0
-    let total = set.score(&1.0);
+    let total = set.sum(&1.0);
     assert!((total - 1.0).abs() < 1e-10);
 
     Ok(())
@@ -470,7 +470,7 @@ fn dynamic_score_set_macro_with_boxed_metrics() -> Result<(), &'static str> {
     }?;
 
     // Weights: 0.4, 0.6; at input=0.5: 0.4*0.5 + 0.6*0.5 = 0.5
-    let total = set.score(&0.5);
+    let total = set.sum(&0.5);
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -500,7 +500,7 @@ fn dynamic_score_set_macro_dna_example() -> Result<(), &'static str> {
     }?;
 
     let ctx = DnaContext::new("ACGTACGTACGT");
-    let total = set.score(&ctx);
+    let total = set.sum(&ctx);
     assert!(total >= 0.0 && total <= 1.0);
 
     Ok(())
@@ -549,7 +549,7 @@ fn breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
 
     let rows = set.breakdown(&0.8);
     let sum_contributions: f64 = rows.iter().map(|r| r.contribution).sum();
-    let total = set.score(&0.8);
+    let total = set.sum(&0.8);
 
     assert!((sum_contributions - total).abs() < 1e-10);
     Ok(())
@@ -589,7 +589,7 @@ fn breakdown_dna_example() -> Result<(), &'static str> {
     }
 
     // Sum of contributions matches total
-    let total = set.score(&ctx);
+    let total = set.sum(&ctx);
     let sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((sum - total).abs() < 1e-10);
 

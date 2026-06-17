@@ -164,7 +164,7 @@ fn restaurant_scoring_layer2() -> Result<(), &'static str> {
         wait_minutes: 12.0,
     };
 
-    let total = set.score(&r);
+    let total = set.sum(&r);
     // cleanliness: 85/100 = 0.85    (weight 3/10 = 0.3)
     // quality:     4.2/5 = 0.84    (weight 5/10 = 0.5)
     // price:       1-18/50 = 0.64  (weight 2/10 = 0.2)
@@ -229,7 +229,7 @@ fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
         price: 0.0,
         wait_minutes: 15.0,
     };
-    let total = set.score(&r);
+    let total = set.sum(&r);
     // All metrics at max (1.0) except wait = 0.5. Equal weights = 0.25 each.
     // total = 0.25*1 + 0.25*1 + 0.25*1 + 0.25*0.5 = 0.875
     assert!((total - 0.875).abs() < 1e-10);
@@ -281,7 +281,7 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
         price: 18.0,
         wait_minutes: 12.0,
     };
-    let total = set.score(&r);
+    let total = set.sum(&r);
     let expected = 0.3 * 0.85 + 0.5 * 0.84 + 0.2 * 0.64;
     assert!((total - expected).abs() < 1e-10);
 

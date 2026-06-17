@@ -30,6 +30,15 @@ impl<T: Float, I> ConstMetric<T, I> {
     }
 }
 
+impl<T: Float, I> DynMetric<T, I> for ConstMetric<T, I> {
+    fn eval(&self, input: &I) -> Witnessed<T, Value01> {
+        ConstMetric::eval(self, input)
+    }
+    fn name(&self) -> &str {
+        ConstMetric::name(self)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Declare test enums
 // ---------------------------------------------------------------------------
@@ -129,7 +138,7 @@ fn finite_score_set_new_and_score() -> Result<(), &'static str> {
 
     // Normalized weights: 2/(2+3)=0.4, 3/(2+3)=0.6
     // Score = 0.4 * 0 + 0.6 * 1 = 0.6
-    let total = set.score(&"anything");
+    let total = set.sum(&"anything");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -143,7 +152,7 @@ fn finite_score_set_single_member() -> Result<(), &'static str> {
     )])?;
 
     // Single member: weight = 1.0, score = 1.0 * 0.5 = 0.5
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -158,7 +167,7 @@ fn finite_score_set_equal_weights() -> Result<(), &'static str> {
     ])?;
 
     // Each weight = 1/3; total = 1/3*0 + 1/3*1 + 1/3*0.5 = 0.5
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -206,7 +215,7 @@ fn finite_score_set_custom_variant() -> Result<(), &'static str> {
 
     // Weights: 4/(4+1)=0.8, 1/(4+1)=0.2
     // Score: 0.8*1 + 0.2*0.75 = 0.8 + 0.15 = 0.95
-    let total = set.score(&0.75);
+    let total = set.sum(&0.75);
     assert!((total - 0.95).abs() < 1e-10);
 
     Ok(())
@@ -226,7 +235,7 @@ fn finite_score_set_with_f32() -> Result<(), &'static str> {
     ])?;
 
     // Weights: 0.4, 0.6; Score = 0.4*1 + 0.6*0 = 0.4
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.4_f32).abs() < 1e-6);
 
     Ok(())
@@ -275,7 +284,7 @@ fn concrete_form_in_finite_score_set() -> Result<(), &'static str> {
     ])?;
 
     // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -323,7 +332,7 @@ fn finite_breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
 
     let rows = set.breakdown(&"x");
     let sum_contributions: f64 = rows.iter().map(|r| r.contribution).sum();
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
 
     assert!((sum_contributions - total).abs() < 1e-10);
     Ok(())
@@ -342,7 +351,7 @@ fn finite_breakdown_concrete_form() -> Result<(), &'static str> {
     assert_eq!(rows[1].name, "one");
 
     // Sum matches score
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     let sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((sum - total).abs() < 1e-10);
 
@@ -362,7 +371,7 @@ fn finite_score_set_macro_basic() -> Result<(), &'static str> {
 
     assert_eq!(set.len(), 2);
     // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -375,7 +384,7 @@ fn finite_score_set_macro_single_member() -> Result<(), &'static str> {
     }?;
 
     // Single member: weight = 1.0, score = 1.0 * 0.5 = 0.5
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -389,7 +398,7 @@ fn finite_score_set_macro_trailing_comma() -> Result<(), &'static str> {
     }?;
 
     // Each weight = 0.5; total = 0.5*0 + 0.5*1 = 0.5
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -425,7 +434,7 @@ fn finite_score_set_macro_concrete_form() -> Result<(), &'static str> {
     }?;
 
     // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -444,7 +453,7 @@ fn finite_score_set_macro_with_breakdown() -> Result<(), &'static str> {
     assert_eq!(rows[1].name, "one");
 
     // Sum matches
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     let sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((sum - total).abs() < 1e-10);
 
@@ -470,7 +479,7 @@ fn finite_builder_chained_push() -> Result<(), &'static str> {
 
     assert_eq!(set.len(), 2);
     // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())
@@ -496,7 +505,7 @@ fn finite_builder_conditional_push() -> Result<(), &'static str> {
     let set = builder.build()?;
     assert_eq!(set.len(), 2);
     // Weights: 2/3≈0.667, 1/3≈0.333; Score = 0.667*0 + 0.333*1 = 0.333
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.333).abs() < 0.001);
 
     Ok(())
@@ -512,7 +521,7 @@ fn finite_builder_single_member() -> Result<(), &'static str> {
         .build()?;
 
     // Single member: weight = 1.0, score = 0.5
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
@@ -541,7 +550,7 @@ fn finite_builder_concrete_form() -> Result<(), &'static str> {
         .build()?;
 
     // Weights: 0.4, 0.6; Score = 0.4*0 + 0.6*1 = 0.6
-    let total = set.score(&"x");
+    let total = set.sum(&"x");
     assert!((total - 0.6).abs() < 1e-10);
 
     Ok(())

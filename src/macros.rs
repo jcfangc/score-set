@@ -41,7 +41,7 @@ macro_rules! fixed_score_set {
 ///     3.0 => MyKind::B(metric_b),
 /// }?;
 ///
-/// let total = set.score(&input);
+/// let total = set.sum(&input);
 /// ```
 #[macro_export]
 macro_rules! finite_score_set {
@@ -70,7 +70,7 @@ macro_rules! finite_score_set {
 ///     3.0 => len_metric.boxed(),
 /// }?;
 ///
-/// let total = set.score(&input);
+/// let total = set.sum(&input);
 /// ```
 #[macro_export]
 macro_rules! dynamic_score_set {
