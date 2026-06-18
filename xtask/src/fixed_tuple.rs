@@ -43,11 +43,12 @@ impl<T: crate::Float, M0> crate::Members<T> for (crate::Member<T, M0>,) {
 
     fn from_raw_with_weights(
         raw: Self::Raw,
+        normalized: &[T],
         container: &witnessed::Witnessed<Vec<T>, crate::NormalizedContainer>,
     ) -> Self {
         (
             crate::Member {
-                weight: container[0]
+                weight: normalized[0]
                     .witness()
                     .by(|v| {
                         crate::NormalizedWeight::from_normalized_container(*v, container)
@@ -78,11 +79,12 @@ macro_rules! impl_members_for_tuple {
 
             fn from_raw_with_weights(
                 raw: Self::Raw,
+                normalized: &[T],
                 container: &witnessed::Witnessed<Vec<T>, $crate::NormalizedContainer>,
             ) -> Self {
                 (
                     $($crate::Member {
-                        weight: container[$idx]
+                        weight: normalized[$idx]
                             .witness()
                             .by(|v| {
                                 $crate::NormalizedWeight::from_normalized_container(

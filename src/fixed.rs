@@ -26,9 +26,16 @@ where
         let raw_weights = Members::extract_raw_weights(&raw);
         let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);
         let normalized: Vec<T> = raw_weights.iter().map(|&w| w / sum).collect();
-        let container = NormalizedContainer::witness(normalized)?;
+
+        // Sort a clone for the validated container (required by binary search in
+        // NormalizedWeight::from_normalized_container). The unsorted `normalized`
+        // slice preserves insertion order for per-member lookup by index.
+        let mut sorted = normalized.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(core::cmp::Ordering::Equal));
+        let container = NormalizedContainer::witness(sorted)?;
+
         Ok(FixedScoreSet {
-            members: Members::from_raw_with_weights(raw, &container),
+            members: Members::from_raw_with_weights(raw, &normalized, &container),
             _phantom: PhantomData,
         })
     }

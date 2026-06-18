@@ -15,13 +15,16 @@ pub trait Members<T: Float>: Sized {
     /// Extract raw weight values from the raw member tuple.
     fn extract_raw_weights(raw: &Self::Raw) -> Vec<T>;
 
-    /// Build the normalized member tuple from raw members and a validated
+    /// Build the normalized member tuple from raw members, the unsorted
+    /// normalized-weight slice (insertion order), and a **sorted** validated
     /// normalized container.
     ///
-    /// Each member's credential is constructed via
+    /// `normalized[idx]` supplies the weight value for member `idx` in insertion
+    /// order; the value is then validated against the sorted `container` via
     /// [`NormalizedWeight::from_normalized_container`].
     fn from_raw_with_weights(
         raw: Self::Raw,
+        normalized: &[T],
         container: &Witnessed<Vec<T>, NormalizedContainer>,
     ) -> Self;
 }

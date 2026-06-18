@@ -68,6 +68,32 @@ fn normalize_single_member() -> Result<(), &'static str> {
 }
 
 #[test]
+fn normalize_descending_weights() -> Result<(), &'static str> {
+    // Regression: descending raw weights produce unsorted normalized weights.
+    // The binary search in NormalizedWeight::from_normalized_container requires
+    // a sorted container — this test ensures the Fixed layer handles that.
+    let m1 = metric("a")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .by(|raw: &f64, _: &f64| Value01::witness(*raw).unwrap());
+
+    let m2 = metric("b")
+        .measure()
+        .by(|v: &f64| *v)
+        .map01()
+        .by(|raw: &f64, _: &f64| Value01::witness(*raw).unwrap());
+
+    // 3.0, 2.0 → normalized = [0.6, 0.4] (unsorted)
+    let ms = fixed_score_set! { 3.0 => m1, 2.0 => m2 }?;
+    let score = ms.score().by(|(m1, m2)| {
+        m1.contribute(m1.metric().eval(&0.5)) + m2.contribute(m2.metric().eval(&0.5))
+    });
+    assert!((score - 0.5).abs() < 1e-10);
+    Ok(())
+}
+
+#[test]
 fn normalize_with_f32() -> Result<(), &'static str> {
     let m = metric("f32-m")
         .measure()
