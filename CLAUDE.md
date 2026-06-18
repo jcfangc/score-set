@@ -7,7 +7,7 @@
 ## 项目特有命令
 
 ```bash
-cargo run -p xtask -- gen --max 8  # 重新生成 gen_tuple.rs
+cargo run -p xtask -- gen --max 8  # 重新生成 fixed_tuple.rs, finite_enum.rs 和 Cargo.toml features
 uv sync                            # 安装 Python 依赖
 ```
 
@@ -20,7 +20,8 @@ uv sync                            # 安装 Python 依赖
 - **`src/set.rs`** — `RawMetricSet`（不含 `T` 泛型，`T` 由 `aggregate` 方法推断）、`MetricSet`、`ScoreStage`。
 - **`src/strategy.rs`** — `weighted_mean` 聚合策略。
 - **`src/macros.rs`** — `score_set!` 宏（只做 raw member 包装，不选聚合策略）。
-- **`src/gen_tuple.rs`** — xtask 生成的 per-arity `Members` trait 实现（arity 1 手写，2+ 用宏；feature-gated）。
+- **`src/fixed_tuple.rs`** — xtask 生成的 per-arity `Members` trait 实现（arity 1 手写，2+ 用宏；feature-gated by `fixed-tuple-N`）。
+- **`src/finite_enum.rs`** — xtask 生成的匿名零虚表枚举 `FiniteEnum1`..`FiniteEnumN`，供 `finite_score_set!` 宏使用（feature-gated by `finite-enum-N`）。
 - **`xtask/`** — 代码生成工具（workspace member），生成后自动 `cargo fmt`。
 - **`pyproject.toml`** — Python 包声明（尚无源码）。
 
