@@ -3,17 +3,17 @@ use crate::value::Value01;
 use witnessed::Witnessed;
 
 // ---------------------------------------------------------------------------
-// DynMetric — type-erased metric trait (Layer 3 foundation)
+// Scorable — type-erased metric trait (Layer 3 foundation)
 // ---------------------------------------------------------------------------
 
 /// A type-erased metric that can be evaluated against input `I`.
 ///
 /// This trait enables dynamic dispatch over heterogeneous metric types via
-/// `Box<dyn DynMetric<T, I>>`. It is the core abstraction behind
+/// `Box<dyn Scorable<T, I>>`. It is the core abstraction behind
 /// [`DynamicScoreSet`](crate::DynamicScoreSet).
 ///
 /// Any [`Metric`](crate::Metric) can be converted into a
-/// `Box<dyn DynMetric<T, I>>` through the blanket implementation.
+/// `Box<dyn Scorable<T, I>>` through the blanket implementation.
 ///
 /// # Examples
 ///
@@ -24,11 +24,11 @@ use witnessed::Witnessed;
 ///     .measure().by(|dna: &&str| gc_ratio(dna))
 ///     .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 ///
-/// let dyn_metric: Box<dyn DynMetric<f64, &str>> = Box::new(gc);
+/// let dyn_metric: Box<dyn Scorable<f64, &str>> = Box::new(gc);
 /// assert_eq!(dyn_metric.name(), "gc");
 /// let score = dyn_metric.eval(&"ACGT");
 /// ```
-pub trait DynMetric<T: Float, I> {
+pub trait Scorable<T: Float, I> {
     /// Evaluate this metric against an input, producing a `[0, 1]` score.
     fn eval(&self, input: &I) -> Witnessed<T, Value01>;
 
@@ -37,10 +37,10 @@ pub trait DynMetric<T: Float, I> {
 }
 
 // ---------------------------------------------------------------------------
-// Blanket impl — any Metric is a DynMetric
+// Blanket impl — any Metric is a Scorable
 // ---------------------------------------------------------------------------
 
-impl<T, I, Raw, M, F> DynMetric<T, I> for crate::Metric<T, I, Raw, M, F>
+impl<T, I, Raw, M, F> Scorable<T, I> for crate::Metric<T, I, Raw, M, F>
 where
     T: Float,
     M: Fn(&I) -> Raw,
@@ -58,10 +58,10 @@ where
 }
 
 // ---------------------------------------------------------------------------
-// DynMetric impl for Box<dyn DynMetric<T, I>> — enables nesting
+// Scorable impl for Box<dyn Scorable<T, I>> — enables nesting
 // ---------------------------------------------------------------------------
 
-impl<T: Float, I> DynMetric<T, I> for Box<dyn DynMetric<T, I>> {
+impl<T: Float, I> Scorable<T, I> for Box<dyn Scorable<T, I>> {
     #[inline]
     fn eval(&self, input: &I) -> Witnessed<T, Value01> {
         (**self).eval(input)
@@ -95,7 +95,7 @@ pub struct DynamicMember<T: Float, I> {
     /// The normalized weight.
     pub weight: Witnessed<T, NormalizedWeight>,
     /// The type-erased metric.
-    pub metric: Box<dyn DynMetric<T, I>>,
+    pub metric: Box<dyn Scorable<T, I>>,
 }
 
 impl<T: Float, I> DynamicMember<T, I> {
@@ -109,7 +109,7 @@ impl<T: Float, I> DynamicMember<T, I> {
 
     /// Return a reference to the metric.
     #[inline]
-    pub fn metric(&self) -> &dyn DynMetric<T, I> {
+    pub fn metric(&self) -> &dyn Scorable<T, I> {
         &*self.metric
     }
 }
@@ -121,7 +121,7 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// A weighted set of scoring operators using dynamic dispatch.
 ///
 /// `DynamicScoreSet` stores a `Vec` of [`DynamicMember`]s, each holding a
-/// `Box<dyn DynMetric<T, I>>`. Every evaluation call pays vtable overhead,
+/// `Box<dyn Scorable<T, I>>`. Every evaluation call pays vtable overhead,
 /// but the set can contain completely heterogeneous metric types and can be
 /// assembled at runtime.
 ///
@@ -136,8 +136,8 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// # Example
 ///
 /// ```ignore
-/// let gc: Box<dyn DynMetric<f64, &str>> = Box::new(gc_metric);
-/// let len: Box<dyn DynMetric<f64, &str>> = Box::new(len_metric);
+/// let gc: Box<dyn Scorable<f64, &str>> = Box::new(gc_metric);
+/// let len: Box<dyn Scorable<f64, &str>> = Box::new(len_metric);
 ///
 /// let set = DynamicScoreSet::<f64, &str>::normalize(vec![
 ///     (2.0, gc),
@@ -156,7 +156,7 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
     ///
     /// Each weight must be finite and strictly positive. Weights are normalized
     /// to sum to 1.
-    pub fn normalize(entries: Vec<(T, Box<dyn DynMetric<T, I>>)>) -> Result<Self, &'static str> {
+    pub fn normalize(entries: Vec<(T, Box<dyn Scorable<T, I>>)>) -> Result<Self, &'static str> {
         if entries.is_empty() {
             return Err("DynamicScoreSet: must have at least one member");
         }
@@ -379,7 +379,7 @@ impl<'a, T: Float, I> DynamicScoreStage<'a, T, I> {
 /// let set = builder.build()?;
 /// ```
 pub struct DynamicScoreSetBuilder<T: Float, I> {
-    entries: Vec<(T, Box<dyn DynMetric<T, I>>)>,
+    entries: Vec<(T, Box<dyn Scorable<T, I>>)>,
 }
 
 impl<T: Float, I> DynamicScoreSetBuilder<T, I> {
@@ -406,7 +406,7 @@ impl<T: Float, I> DynamicScoreSetBuilder<T, I> {
     pub fn push(
         mut self,
         weight: T,
-        metric: Box<dyn DynMetric<T, I>>,
+        metric: Box<dyn Scorable<T, I>>,
     ) -> Result<Self, &'static str> {
         GtZero::witness(weight)?;
         self.entries.push((weight, metric));

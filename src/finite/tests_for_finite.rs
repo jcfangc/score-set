@@ -30,7 +30,7 @@ impl<T: Float, I> ConstMetric<T, I> {
     }
 }
 
-impl<T: Float, I> DynMetric<T, I> for ConstMetric<T, I> {
+impl<T: Float, I> Scorable<T, I> for ConstMetric<T, I> {
     fn eval(&self, input: &I) -> Witnessed<T, Value01> {
         ConstMetric::eval(self, input)
     }
@@ -45,17 +45,20 @@ impl<T: Float, I> DynMetric<T, I> for ConstMetric<T, I> {
 
 // Generic form: enum is generic over T, I
 finite_metric! {
-    TestKind<T, I> =>
+    metric => TestKind<T, I>,
+    dimensions =>
         AlwaysZero(ConstMetric<T, I>),
         AlwaysOne(ConstMetric<T, I>),
         Half(ConstMetric<T, I>),
-        Custom(Box<dyn DynMetric<T, I>>),
+        Custom(Box<dyn Scorable<T, I>>),
 }
 
-// Concrete form: enum locks T and I to specific types.
-// Custom escape hatch is auto-generated — no need to declare it.
+// Concrete form: float and subject are fixed concrete types
 finite_metric! {
-    ConcreteKind(f64, &'static str) =>
+    metric     => ConcreteKind,
+    float      => f64,
+    subject    => &'static str,
+    dimensions =>
         Zero(ConstMetric<f64, &'static str>),
         One(ConstMetric<f64, &'static str>),
 }
@@ -89,7 +92,7 @@ fn finite_metric_custom_variant() -> Result<(), &'static str> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
     let m = metric("linear").measure().by(measure).map01().by(map01);
-    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+    let dyn_metric: Box<dyn Scorable<f64, f64>> = Box::new(m);
 
     let custom = TestKind::Custom(dyn_metric);
     assert_eq!(custom.name(), "linear");
@@ -101,10 +104,10 @@ fn finite_metric_custom_variant() -> Result<(), &'static str> {
 
 #[test]
 fn finite_metric_is_dyn_metric() -> Result<(), &'static str> {
-    // TestKind implements DynMetric directly (via finite_metric!)
+    // TestKind implements Scorable directly (via finite_metric!)
     let zero = TestKind::AlwaysZero(ConstMetric::new("zero", 0.0_f64));
 
-    let dyn_ref: &dyn DynMetric<f64, &str> = &zero;
+    let dyn_ref: &dyn Scorable<f64, &str> = &zero;
     assert_eq!(dyn_ref.name(), "zero");
     assert!((*dyn_ref.eval(&"anything") - 0.0).abs() < 1e-10);
 
@@ -114,7 +117,7 @@ fn finite_metric_is_dyn_metric() -> Result<(), &'static str> {
 #[test]
 fn finite_metric_boxed_as_dyn() -> Result<(), &'static str> {
     let one = TestKind::AlwaysOne(ConstMetric::new("one", 1.0_f64));
-    let boxed: Box<dyn DynMetric<f64, &str>> = Box::new(one);
+    let boxed: Box<dyn Scorable<f64, &str>> = Box::new(one);
 
     assert_eq!(boxed.name(), "one");
     assert!((*boxed.eval(&"x") - 1.0).abs() < 1e-10);
@@ -206,7 +209,7 @@ fn finite_score_set_custom_variant() -> Result<(), &'static str> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
     let m = metric("linear").measure().by(measure).map01().by(map01);
-    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+    let dyn_metric: Box<dyn Scorable<f64, f64>> = Box::new(m);
 
     let set = FiniteScoreSet::<f64, f64, TestKind<f64, f64>>::normalize(vec![
         (4.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
@@ -272,7 +275,7 @@ fn concrete_form_eval() {
 #[test]
 fn concrete_form_as_dyn_metric() {
     let zero = ConcreteKind::Zero(ConstMetric::new("zero", 0.0_f64));
-    let dyn_ref: &dyn DynMetric<f64, &str> = &zero;
+    let dyn_ref: &dyn Scorable<f64, &str> = &zero;
     assert_eq!(dyn_ref.name(), "zero");
 }
 

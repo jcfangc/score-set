@@ -13,7 +13,7 @@
 // Run `cargo run -p xtask -- gen --max <N>` to regenerate for higher arities.
 // ---------------------------------------------------------------------------
 
-/// Generate a finite enum + `DynMetric` impl for a given arity.
+/// Generate a finite enum + `Scorable` impl for a given arity.
 macro_rules! finite_enum_inner {
     ($name:ident; $($variant:ident $t:ident),+ $(,)?) => {
         #[allow(dead_code)]
@@ -21,8 +21,8 @@ macro_rules! finite_enum_inner {
             $($variant($t)),+
         }
 
-        impl<T: $crate::Float, I, $($t: $crate::DynMetric<T, I>),+>
-            $crate::DynMetric<T, I> for $name<$($t),+>
+        impl<T: $crate::Float, I, $($t: $crate::Scorable<T, I>),+>
+            $crate::Scorable<T, I> for $name<$($t),+>
         {
             #[inline]
             fn eval(&self, input: &I) -> $crate::Witnessed<T, $crate::Value01> {

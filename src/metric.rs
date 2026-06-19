@@ -173,13 +173,13 @@ where
     M: Fn(&I) -> Raw,
     F: Fn(&Raw, &I) -> Witnessed<T, Value01>,
 {
-    /// Box this metric as a `Box<dyn DynMetric<T, I>>` for use in
+    /// Box this metric as a `Box<dyn Scorable<T, I>>` for use in
     /// [`DynamicScoreSet`](crate::DynamicScoreSet).
     ///
     /// This is a convenience over `Box::new(metric)` — it infers the
-    /// `DynMetric` type automatically, avoiding an explicit annotation.
+    /// `Scorable` type automatically, avoiding an explicit annotation.
     #[inline]
-    pub fn boxed(self) -> Box<dyn crate::DynMetric<T, I>> {
+    pub fn boxed(self) -> Box<dyn crate::Scorable<T, I>> {
         Box::new(self)
     }
 }

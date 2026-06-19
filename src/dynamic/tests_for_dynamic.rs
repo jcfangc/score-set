@@ -1,7 +1,7 @@
 use crate::*;
 
 // ===========================================================================
-// DynMetric trait tests
+// Scorable trait tests
 // ===========================================================================
 
 #[test]
@@ -12,7 +12,7 @@ fn dyn_metric_from_metric_builder() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+    let dyn_metric: Box<dyn Scorable<f64, f64>> = Box::new(m);
 
     assert_eq!(dyn_metric.name(), "test-metric");
     let score = dyn_metric.eval(&0.5);
@@ -29,7 +29,7 @@ fn dyn_metric_clamp_behavior() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
+    let dyn_metric: Box<dyn Scorable<f64, f64>> = Box::new(m);
 
     assert!((*dyn_metric.eval(&1.5) - 1.0).abs() < 1e-10);
     assert!((*dyn_metric.eval(&-0.5) - 0.0).abs() < 1e-10);
@@ -45,9 +45,9 @@ fn dyn_metric_nested_box() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let inner: Box<dyn DynMetric<f64, f64>> = Box::new(m);
-    // Box<dyn DynMetric> itself implements DynMetric
-    let outer: Box<dyn DynMetric<f64, f64>> = Box::new(inner);
+    let inner: Box<dyn Scorable<f64, f64>> = Box::new(m);
+    // Box<dyn Scorable> itself implements Scorable
+    let outer: Box<dyn Scorable<f64, f64>> = Box::new(inner);
 
     assert_eq!(outer.name(), "nested");
     assert!((*outer.eval(&0.75) - 0.75).abs() < 1e-10);
@@ -64,7 +64,7 @@ fn dyn_metric_different_input_types() -> Result<(), &'static str> {
         .map01()
         .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 
-    let dyn_metric: Box<dyn DynMetric<f64, &str>> = Box::new(m);
+    let dyn_metric: Box<dyn Scorable<f64, &str>> = Box::new(m);
     let score = dyn_metric.eval(&"ACGT");
     assert!((*score - 0.5).abs() < 1e-10);
 
@@ -163,9 +163,9 @@ fn dynamic_score_set_f32() -> Result<(), &'static str> {
     fn map01(raw: &f32, _: &f32) -> Witnessed<f32, Value01> {
         Value01::witness(raw.min(1.0).max(0.0)).unwrap()
     }
-    let a: Box<dyn DynMetric<f32, f32>> =
+    let a: Box<dyn Scorable<f32, f32>> =
         Box::new(metric("a").measure().by(measure).map01().by(map01));
-    let b: Box<dyn DynMetric<f32, f32>> =
+    let b: Box<dyn Scorable<f32, f32>> =
         Box::new(metric("b").measure().by(measure).map01().by(map01));
 
     let set = DynamicScoreSet::<f32, f32>::normalize(vec![(1.0, a), (3.0, b)])?;
@@ -205,8 +205,8 @@ fn dynamic_score_set_iter() -> Result<(), &'static str> {
 #[test]
 fn dynamic_score_set_heterogeneous_metrics() -> Result<(), &'static str> {
     // Mix different metric types — the whole point of DynamicScoreSet.
-    let a: Box<dyn DynMetric<f64, f64>> = make_identity_metric("a").boxed();
-    let b: Box<dyn DynMetric<f64, f64>> = make_identity_metric("b").boxed();
+    let a: Box<dyn Scorable<f64, f64>> = make_identity_metric("a").boxed();
+    let b: Box<dyn Scorable<f64, f64>> = make_identity_metric("b").boxed();
 
     let set = DynamicScoreSet::<f64, f64>::normalize(vec![(1.0, a), (2.0, b)])?;
 
@@ -566,14 +566,14 @@ fn breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
 
 #[test]
 fn breakdown_dna_example() -> Result<(), &'static str> {
-    let gc: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+    let gc: Box<dyn Scorable<f64, DnaContext>> = Box::new(
         metric("gc_ratio")
             .measure()
             .by(|ctx: &DnaContext| crate::lab::gc_ratio(ctx.dna))
             .map01()
             .by(|raw: &f64, _: &DnaContext| Value01::witness(raw.min(1.0).max(0.0)).unwrap()),
     );
-    let len: Box<dyn DynMetric<f64, DnaContext>> = Box::new(
+    let len: Box<dyn Scorable<f64, DnaContext>> = Box::new(
         metric("seq_len")
             .measure()
             .by(|ctx: &DnaContext| ctx.len as f64)

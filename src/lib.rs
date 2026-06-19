@@ -57,7 +57,7 @@ mod value;
 // Public API
 pub use breakdown::Breakdown;
 pub use dynamic::{
-    DynMetric, DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder, DynamicScoreStage,
+    DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder, DynamicScoreStage, Scorable,
 };
 pub use finite::{FiniteMember, FiniteScoreSet, FiniteScoreSetBuilder, FiniteScoreStage};
 pub use finite_enum::*;

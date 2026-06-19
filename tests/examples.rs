@@ -34,7 +34,7 @@ impl<T: Float, I> ConstMetric<T, I> {
     }
 }
 
-impl<T: Float, I> DynMetric<T, I> for ConstMetric<T, I> {
+impl<T: Float, I> Scorable<T, I> for ConstMetric<T, I> {
     fn eval(&self, input: &I) -> Witnessed<T, Value01> {
         ConstMetric::eval(self, input)
     }
@@ -171,7 +171,10 @@ impl PriceScore {
 // ===========================================================================
 
 finite_metric! {
-    RestaurantMetric(f64, Restaurant) =>
+    metric     => RestaurantMetric,
+    float      => f64,
+    subject    => Restaurant,
+    dimensions =>
         Clean(Cleanliness),
         Quality(FoodQuality),
         Price(PriceScore),
@@ -247,13 +250,14 @@ fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
     // (The concrete form no longer auto-generates Custom — no dead-code warning
     // when you don't need it.)
     finite_metric! {
-        DemoMetricWithCustom<T, I> =>
+        metric => DemoMetricWithCustom<T, I>,
+        dimensions =>
             AlwaysZero(ConstMetric<T, I>),
             AlwaysOne(ConstMetric<T, I>),
-            Custom(Box<dyn DynMetric<T, I>>),
+            Custom(Box<dyn Scorable<T, I>>),
     }
 
-    let wait_metric: Box<dyn DynMetric<f64, Restaurant>> = metric("wait_time")
+    let wait_metric: Box<dyn Scorable<f64, Restaurant>> = metric("wait_time")
         .measure()
         .by(|r: &Restaurant| r.wait_minutes)
         .map01()
@@ -346,7 +350,7 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
 
 // Layer 3 (DynamicScoreSet) is fully dynamic — every .eval() call goes
 // through two levels of indirection:
-//   1. vtable lookup on Box<dyn DynMetric>
+//   1. vtable lookup on Box<dyn Scorable>
 //   2. vtable lookup on Box<dyn Fn> (inside the Metric's closures)
 //
 // Layer 2 (FiniteScoreSet) with finite_metric! eliminates BOTH:
@@ -367,10 +371,10 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
 //       Clean(Cleanliness),
 //       Quality(FoodQuality),
 //       Price(PriceScore),
-//       Custom(Box<dyn DynMetric<f64, Restaurant>>),
+//       Custom(Box<dyn Scorable<f64, Restaurant>>),
 //   }
 //
-//   impl DynMetric<f64, Restaurant> for RestaurantMetricManual {
+//   impl Scorable<f64, Restaurant> for RestaurantMetricManual {
 //       fn eval(&self, input: &Restaurant) -> Witnessed<f64, Value01> {
 //           match self {
 //               Self::Clean(m) => m.eval(input),
@@ -389,10 +393,13 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
 //       }
 //   }
 //
-// finite_metric! collapses this to 4 lines (Custom auto-generated):
+// finite_metric! collapses this to 6 lines with named keys:
 //
 //   finite_metric! {
-//       RestaurantMetric(f64, Restaurant) =>
+//       metric     => RestaurantMetric,
+//       float      => f64,
+//       subject    => Restaurant,
+//       dimensions =>
 //           Clean(Cleanliness),
 //           Quality(FoodQuality),
 //           Price(PriceScore),
@@ -407,10 +414,12 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
 // Generic form: enum is parameterized over T and I.
 // Useful when the same metric types work for multiple input types.
 finite_metric! {
-    pub GenericKind<T, I> =>
+    pub
+    metric => GenericKind<T, I>,
+    dimensions =>
         Yes(ConstMetric<T, I>),
         No(ConstMetric<T, I>),
-        Custom(Box<dyn DynMetric<T, I>>),
+        Custom(Box<dyn Scorable<T, I>>),
 }
 
 #[test]
