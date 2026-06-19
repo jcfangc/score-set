@@ -9,9 +9,8 @@ use core::marker::PhantomData;
 /// A compile-time fixed weighted set of scoring operators with normalized
 /// weights.
 ///
-/// Construct via [`fixed_score_set!`](crate::fixed_score_set!) or
-/// [`FixedScoreSet::normalize`]. Call [`.score()`](FixedScoreSet::score) to
-/// enter the scoring stage.
+/// Construct via [`fixed_score_set!`](crate::fixed_score_set!). Call
+/// [`.score()`](FixedScoreSet::score) to enter the scoring stage.
 pub struct FixedScoreSet<T: Float, Members> {
     pub(crate) members: Members,
     _phantom: PhantomData<T>,
@@ -22,6 +21,7 @@ where
     Members: crate::Members<T>,
 {
     /// Normalize raw weights and validate the resulting set.
+    #[doc(hidden)]
     pub fn normalize(raw: Members::Raw) -> Result<Self, &'static str> {
         let raw_weights = Members::extract_raw_weights(&raw);
         let sum: T = raw_weights.iter().fold(T::zero(), |a, &b| a + b);

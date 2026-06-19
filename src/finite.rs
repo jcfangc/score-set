@@ -170,8 +170,9 @@ impl<T: Float, E> FiniteMember<T, E> {
 /// `eval` method dispatches via `match` — zero vtable overhead for all
 /// non-`Custom` variants.
 ///
-/// Construct via [`FiniteScoreSet::normalize`], then call
-/// [`.score()`](FiniteScoreSet::score).
+/// Construct via [`finite_score_set!`](crate::finite_score_set!), the
+/// [`FiniteScoreSetBuilder`], or call [`.score()`](FiniteScoreSet::score)
+/// directly.
 ///
 /// # Type parameters
 ///
@@ -201,6 +202,7 @@ impl<T: Float, I, E: Scorable<T, I>> FiniteScoreSet<T, I, E> {
     ///
     /// Each weight must be finite and strictly positive. Weights are normalized
     /// to sum to 1.
+    #[doc(hidden)]
     pub fn normalize(entries: Vec<(T, E)>) -> Result<Self, &'static str> {
         if entries.is_empty() {
             return Err("FiniteScoreSet: must have at least one member");

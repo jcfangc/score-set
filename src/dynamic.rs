@@ -125,8 +125,9 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// but the set can contain completely heterogeneous metric types and can be
 /// assembled at runtime.
 ///
-/// Construct via [`DynamicScoreSet::normalize`], then call
-/// [`.score()`](DynamicScoreSet::score).
+/// Construct via [`dynamic_score_set!`](crate::dynamic_score_set!), the
+/// [`DynamicScoreSetBuilder`], or call [`.score()`](DynamicScoreSet::score)
+/// directly.
 ///
 /// # Type parameters
 ///
@@ -156,6 +157,7 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
     ///
     /// Each weight must be finite and strictly positive. Weights are normalized
     /// to sum to 1.
+    #[doc(hidden)]
     pub fn normalize(entries: Vec<(T, Box<dyn Scorable<T, I>>)>) -> Result<Self, &'static str> {
         if entries.is_empty() {
             return Err("DynamicScoreSet: must have at least one member");
