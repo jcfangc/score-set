@@ -11,6 +11,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/jcfangc/score-set"
 keywords = ["scoring", "weighted", "metric", "static", "score"]
 categories = ["algorithms", "science"]
+exclude = [
+    "src/lab.rs",
+    "src/**/tests_for_*.rs",
+]
 
 [dependencies]
 witnessed = "0.8.0"

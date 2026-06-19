@@ -42,8 +42,8 @@ where
 
     /// Enter the scoring stage.
     #[inline]
-    pub fn score(&self) -> ScoreStage<'_, T, Members> {
-        ScoreStage {
+    pub fn score(&self) -> FixedScoreStage<'_, T, Members> {
+        FixedScoreStage {
             members: &self.members,
             _phantom: PhantomData,
         }
@@ -58,12 +58,12 @@ where
 ///
 /// Call [`.by(closure)`](ScoreStage::by) to evaluate the set with an
 /// arbitrary composition of its members.
-pub struct ScoreStage<'a, T: Float, Members> {
+pub struct FixedScoreStage<'a, T: Float, Members> {
     members: &'a Members,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Float, Members> ScoreStage<'a, T, Members> {
+impl<'a, T: Float, Members> FixedScoreStage<'a, T, Members> {
     /// Score the set using a user-provided closure.
     #[inline]
     pub fn by<F, R>(self, f: F) -> R

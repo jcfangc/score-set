@@ -61,7 +61,7 @@ pub use dynamic::{
 };
 pub use finite::{FiniteMember, FiniteScoreSet, FiniteScoreSetBuilder, FiniteScoreStage};
 pub use finite_enum::*;
-pub use fixed::{FixedScoreSet, ScoreStage};
+pub use fixed::{FixedScoreSet, FixedScoreStage};
 pub use float::Float;
 // fixed_score_set!, dynamic_score_set!, and finite_metric! are exported at crate root via #[macro_export]
 pub use member::{Member, Members, RawMember, raw_member};
