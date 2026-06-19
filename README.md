@@ -3,102 +3,118 @@
 [![crates.io](https://img.shields.io/crates/v/score-set?label=crates.io)](https://crates.io/crates/score-set)
 [![Coverage](https://codecov.io/gh/jcfangc/score-set/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/score-set)
 
-A Rust library for building **static weighted scoring operator sets**. Declare a set of named metrics with weights, normalize at build time, score at runtime via a user-provided closure that freely injects inputs and context.
+A Rust library for building **weighted scoring operator sets** with three
+dispatch strategies — from compile-time fixed to fully dynamic.
 
-## Usage
+## Quick example (Layer 1 — fixed)
 
 ```rust
 use score_set::*;
 
-// 1. Build metrics
-let gc = metric("gc-content")
-    .measure()
-    .by(|dna: &&str| {
-        let gc = dna.chars().filter(|c| *c == 'G' || *c == 'C').count();
-        if dna.is_empty() { 0.0 } else { gc as f64 / dna.len() as f64 }
-    })
-    .map01()
-    .by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
+let gc = metric("gc")
+    .measure().by(|dna: &&str| gc_ratio(dna))
+    .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
 
-let length = metric("length")
-    .measure()
-    .by(|len: &usize| *len)
-    .map01()
-    .by(|raw: &usize, _: &usize| {
+let len = metric("len")
+    .measure().by(|len: &usize| *len)
+    .map01().by(|raw: &usize, _: &usize| {
         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
     });
 
-// 2. Declare the set — weights are normalized automatically
-let ms = score_set! {
-    2.0 => gc,
-    3.0 => length,
-}?;
+let ms = fixed_score_set! { 2.0 => gc, 3.0 => len }?;
 
-// 3. Score with runtime data
 let dna = "ACGTACGT";
 let score = ms.score().by(|(gc, len)| {
     gc.contribute(gc.metric().eval(&dna))
         + len.contribute(len.metric().eval(&dna.len()))
 });
-// score ≈ 0.248
-
-# Ok::<(), &'static str>(())
 ```
 
-## Concepts
+## Three-layer architecture
 
-**Metrics.** A `Metric` is a two-stage scoring operator: `measure` maps input to a raw value, `map01` maps the raw value (with the original input still available for context) to a validated `[0, 1]` score.
+| Layer | Type | Macro | Dispatch | Use when |
+|---|---|---|---|---|
+| 1 — fixed | `FixedScoreSet` | `fixed_score_set!` | Compile-time, zero vtable | Metric set known at compile time |
+| 2 — finite | `FiniteScoreSet` | `finite_score_set!` | Enum match, zero vtable | Runtime composition, known metric types |
+| 3 — dynamic | `DynamicScoreSet` | `dynamic_score_set!` | Vtable per call | Fully heterogeneous, runtime assembly |
+
+All three layers share the same `{ weight => metric, ... }` macro syntax.
+
+### Layer 2 — finite
+
+Declare a metric enum with named keys, then assemble:
 
 ```rust
-metric("name")
-    .measure().by(|input: &T| raw_value)
-    .map01().by(|raw: &Raw, input: &T| Value01::witness(raw).unwrap())
+finite_metric! {
+    metric     => RestaurantMetric,
+    float      => f64,
+    subject    => Restaurant,
+    dimensions =>
+        Clean(Cleanliness),
+        Quality(FoodQuality),
+        Price(PriceScore),
+}
+
+let set = finite_score_set! {
+    3.0 => RestaurantMetric::Clean(Cleanliness::new()),
+    5.0 => RestaurantMetric::Quality(FoodQuality::new()),
+    2.0 => RestaurantMetric::Price(PriceScore::new()),
+}?;
+
+let total = set.sum(&restaurant);
+let rows  = set.breakdown(&restaurant);  // per-metric detail
 ```
 
-**Score Sets.** `score_set!` declares a weighted set of metrics. Weights are validated strictly positive and normalized to sum to 1. Validation fails at build time if any weight is ≤ 0.
+Or skip the enum declaration entirely — bare metrics are auto-wrapped in an
+anonymous zero-vtable enum:
 
 ```rust
-let ms = score_set! { 2.0 => gc, 3.0 => len, 5.0 => specificity }?;
+let set = finite_score_set! { 2.0 => gc, 3.0 => len }?;
+let total = set.sum(&input);
 ```
 
-**Scoring.** `score().by(closure)` gives access to every member. Each member provides `.metric()` (the operator) and `.contribute(value01)` (score × normalized weight). The closure composes contributions arbitrarily — different operators can consume different input shapes, capture external context, or conditionally participate.
+### Layer 3 — dynamic
 
-Linear combination:
+Same syntax, metrics are auto-boxed:
 
 ```rust
-let score = ms.score().by(|(gc, len, spec)| {
-    gc.contribute(gc.metric().eval(&dna))
-        + len.contribute(len.metric().eval(&dna.len()))
-        + spec.contribute(spec.metric().eval(&(&dna, &ctx)))
-});
+let set = dynamic_score_set! { 2.0 => gc, 3.0 => len }?;
+let total = set.sum(&input);
 ```
 
-Geometric (product) — all-or-nothing scoring sensitive to any weak metric:
+## Scoring
+
+| Method | Layer 1 | Layer 2 | Layer 3 |
+|---|---|---|---|
+| `set.sum(&input)` | — | ✅ | ✅ |
+| `set.score().by(closure)` | ✅ | ✅ | ✅ |
+| `set.breakdown(&input)` | — | ✅ | ✅ |
+| `set.iter()` / `.len()` | — | ✅ | ✅ |
+| Builder `.push().build()` | — | ✅ | ✅ |
+
+## Building a metric
 
 ```rust
-let score = ms.score().by(|(gc, len, spec)| {
-    gc.contribute(gc.metric().eval(&dna))
-        * len.contribute(len.metric().eval(&dna.len()))
-        * spec.contribute(spec.metric().eval(&(&dna, &ctx)))
-});
+let m = metric("name")            // name it
+    .measure().by(|input| raw)    // measure: I → Raw
+    .map01().by(|raw, input| v);  // normalise: Raw → [0, 1]
 ```
 
-**Controlled values.**
+## Features
 
-| Function | Returns | Guarantee |
-|---|---|---|
-| `Value01::witness(v)` | `Witnessed<T, Value01>` | finite, ∈ [0, 1] |
-| `NormalizedContainer::witness(vec)` | `Witnessed<Vec<T>, NormalizedContainer>` | all ∈ [0, 1], sum = 1 |
-
-`NormalizedWeight` credentials are extracted from a validated container via `NormalizedWeight::from_normalized_container(value, &container)`, which binary-searches for membership verification.
-
-## Arity
-
-Default supports up to 8 metrics per set. Opt into larger arities via Cargo features:
+Default arity is 128 members per set. Opt into smaller feature sets:
 
 ```toml
-score-set = { features = ["level-16"] }   # up to 16
-score-set = { features = ["level-128"] }  # up to 128
+score-set = { default-features = false, features = ["level-8"] }
+score-set = { features = ["level-16"] }
+```
+
+Available levels: `level-8`, `level-16`, `level-32`, `level-64`, `level-128`.
+
+Per-layer control:
+
+```toml
+score-set = { features = ["fixed-level-8", "finite-level-8"] }
 ```
 
 ## License
