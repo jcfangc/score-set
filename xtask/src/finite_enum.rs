@@ -40,7 +40,7 @@ pub fn generate(max: usize) {
     content.push_str(
         r##"/// Generate a finite enum + `DynMetric` impl for a given arity.
 macro_rules! finite_enum_inner {
-    ($name:ident; $($idx:tt $variant:ident $t:ident),+ $(,)?) => {
+    ($name:ident; $($variant:ident $t:ident),+ $(,)?) => {
         #[allow(dead_code)]
         pub enum $name<$($t),+> {
             $($variant($t)),+
@@ -113,8 +113,8 @@ macro_rules! impl_into_finite_entries {
 
     // ---- per-arity: enum + IntoFiniteEntries impl ----
     for n in 1..=max {
-        // finite_enum_inner! takes (idx, variant, type_param)
-        let enum_pairs: Vec<String> = (0..n).map(|i| format!("{i} M{i} T{i}")).collect();
+        // finite_enum_inner! takes (variant, type_param)
+        let enum_pairs: Vec<String> = (0..n).map(|i| format!("M{i} T{i}")).collect();
         let enum_joined = enum_pairs.join(", ");
 
         // impl_into_finite_entries! takes (idx, variant, type_param, var_binding)

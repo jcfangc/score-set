@@ -125,7 +125,7 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// but the set can contain completely heterogeneous metric types and can be
 /// assembled at runtime.
 ///
-/// Construct via [`DynamicScoreSet::new`], then call
+/// Construct via [`DynamicScoreSet::normalize`], then call
 /// [`.score()`](DynamicScoreSet::score).
 ///
 /// # Type parameters
@@ -139,7 +139,7 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// let gc: Box<dyn DynMetric<f64, &str>> = Box::new(gc_metric);
 /// let len: Box<dyn DynMetric<f64, &str>> = Box::new(len_metric);
 ///
-/// let set = DynamicScoreSet::<f64, &str>::new(vec![
+/// let set = DynamicScoreSet::<f64, &str>::normalize(vec![
 ///     (2.0, gc),
 ///     (3.0, len),
 /// ])?;
@@ -152,11 +152,11 @@ pub struct DynamicScoreSet<T: Float, I> {
 }
 
 impl<T: Float, I> DynamicScoreSet<T, I> {
-    /// Create a new `DynamicScoreSet` from a list of `(weight, metric)` pairs.
+    /// Normalize raw weights and validate the resulting set.
     ///
     /// Each weight must be finite and strictly positive. Weights are normalized
     /// to sum to 1.
-    pub fn new(entries: Vec<(T, Box<dyn DynMetric<T, I>>)>) -> Result<Self, &'static str> {
+    pub fn normalize(entries: Vec<(T, Box<dyn DynMetric<T, I>>)>) -> Result<Self, &'static str> {
         if entries.is_empty() {
             return Err("DynamicScoreSet: must have at least one member");
         }
@@ -421,7 +421,7 @@ impl<T: Float, I> DynamicScoreSetBuilder<T, I> {
     /// Returns an error if no members were pushed.
     #[inline]
     pub fn build(self) -> Result<DynamicScoreSet<T, I>, &'static str> {
-        DynamicScoreSet::new(self.entries)
+        DynamicScoreSet::normalize(self.entries)
     }
 }
 

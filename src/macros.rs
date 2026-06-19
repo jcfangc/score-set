@@ -50,11 +50,11 @@ macro_rules! fixed_score_set {
 macro_rules! finite_score_set {
     // empty
     () => {
-        $crate::FiniteScoreSet::new(vec![])
+        $crate::FiniteScoreSet::normalize(vec![])
     };
     // 1+ members — tuples into trait dispatch, symmetric with `fixed_score_set!` / `Members`
     ($($weight:expr => $metric:expr),+ $(,)?) => {
-        $crate::FiniteScoreSet::new(
+        $crate::FiniteScoreSet::normalize(
             $crate::into_finite_entries(
                 ($($metric,)+),
                 &[$($weight),+],
@@ -85,10 +85,10 @@ macro_rules! finite_score_set {
 #[macro_export]
 macro_rules! dynamic_score_set {
     () => {
-        $crate::DynamicScoreSet::new(vec![])
+        $crate::DynamicScoreSet::normalize(vec![])
     };
     ($($weight:expr => $metric:expr),+ $(,)?) => {
-        $crate::DynamicScoreSet::new(vec![
+        $crate::DynamicScoreSet::normalize(vec![
             $(($weight, $metric.boxed())),+
         ])
     };

@@ -151,7 +151,7 @@ fn restaurant_scoring_layer2() -> Result<(), &'static str> {
     // Compose a scoring set at runtime.
     // In a real app, this configuration might come from a config file or user
     // preferences — but the *set of possible metrics* is known at compile time.
-    let set = FiniteScoreSet::new(vec![
+    let set = FiniteScoreSet::normalize(vec![
         (3.0, RestaurantMetric::Clean(Cleanliness::new())),
         (5.0, RestaurantMetric::Quality(FoodQuality::new())),
         (2.0, RestaurantMetric::Price(PriceScore::new())),
@@ -177,7 +177,7 @@ fn restaurant_scoring_layer2() -> Result<(), &'static str> {
 
 #[test]
 fn restaurant_scoring_layer2_inspect() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::new(vec![
+    let set = FiniteScoreSet::normalize(vec![
         (1.0, RestaurantMetric::Clean(Cleanliness::new())),
         (1.0, RestaurantMetric::Quality(FoodQuality::new())),
     ])?;
@@ -216,7 +216,7 @@ fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
         .linear(30.0)
         .boxed(); // P0 improvement!
 
-    let set = FiniteScoreSet::new(vec![
+    let set = FiniteScoreSet::normalize(vec![
         (1.0, RestaurantMetric::Clean(Cleanliness::new())),
         (1.0, RestaurantMetric::Quality(FoodQuality::new())),
         (1.0, RestaurantMetric::Price(PriceScore::new())),
@@ -243,7 +243,7 @@ fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
 
 #[test]
 fn restaurant_scoring_layer3() -> Result<(), &'static str> {
-    let set = DynamicScoreSet::new(vec![
+    let set = DynamicScoreSet::normalize(vec![
         (
             3.0,
             metric("cleanliness")

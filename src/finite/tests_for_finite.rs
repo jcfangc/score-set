@@ -128,7 +128,7 @@ fn finite_metric_boxed_as_dyn() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_new_and_score() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
         (2.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
         (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
     ])?;
@@ -146,7 +146,7 @@ fn finite_score_set_new_and_score() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_single_member() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![(
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![(
         5.0,
         TestKind::Half(ConstMetric::new("half", 0.5)),
     )])?;
@@ -160,7 +160,7 @@ fn finite_score_set_single_member() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_equal_weights() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
         (1.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
         (1.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
         (1.0, TestKind::Half(ConstMetric::new("half", 0.5))),
@@ -175,13 +175,13 @@ fn finite_score_set_equal_weights() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_empty_rejected() {
-    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![]);
+    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![]);
     assert!(result.is_err());
 }
 
 #[test]
 fn finite_score_set_zero_weight_rejected() {
-    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![(
+    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![(
         0.0,
         TestKind::AlwaysOne(ConstMetric::new("one", 1.0)),
     )]);
@@ -190,7 +190,7 @@ fn finite_score_set_zero_weight_rejected() {
 
 #[test]
 fn finite_score_set_negative_weight_rejected() {
-    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![(
+    let result = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![(
         -1.0,
         TestKind::AlwaysOne(ConstMetric::new("one", 1.0)),
     )]);
@@ -208,7 +208,7 @@ fn finite_score_set_custom_variant() -> Result<(), &'static str> {
     let m = metric("linear").measure().by(measure).map01().by(map01);
     let dyn_metric: Box<dyn DynMetric<f64, f64>> = Box::new(m);
 
-    let set = FiniteScoreSet::<f64, f64, TestKind<f64, f64>>::new(vec![
+    let set = FiniteScoreSet::<f64, f64, TestKind<f64, f64>>::normalize(vec![
         (4.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
         (1.0, TestKind::Custom(dyn_metric)),
     ])?;
@@ -223,7 +223,7 @@ fn finite_score_set_custom_variant() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_with_f32() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f32, &str, TestKind<f32, &str>>::new(vec![
+    let set = FiniteScoreSet::<f32, &str, TestKind<f32, &str>>::normalize(vec![
         (
             2.0_f32,
             TestKind::AlwaysOne(ConstMetric::new("one", 1.0_f32)),
@@ -243,7 +243,7 @@ fn finite_score_set_with_f32() -> Result<(), &'static str> {
 
 #[test]
 fn finite_score_set_iter() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
         (1.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
         (1.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
     ])?;
@@ -278,7 +278,7 @@ fn concrete_form_as_dyn_metric() {
 
 #[test]
 fn concrete_form_in_finite_score_set() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::normalize(vec![
         (2.0, ConcreteKind::Zero(ConstMetric::new("zero", 0.0))),
         (3.0, ConcreteKind::One(ConstMetric::new("one", 1.0))),
     ])?;
@@ -296,7 +296,7 @@ fn concrete_form_in_finite_score_set() -> Result<(), &'static str> {
 
 #[test]
 fn finite_breakdown_basic() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
         (2.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
         (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
     ])?;
@@ -324,7 +324,7 @@ fn finite_breakdown_basic() -> Result<(), &'static str> {
 
 #[test]
 fn finite_breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
         (1.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
         (1.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
         (1.0, TestKind::Half(ConstMetric::new("half", 0.5))),
@@ -340,7 +340,7 @@ fn finite_breakdown_contributions_sum_to_score() -> Result<(), &'static str> {
 
 #[test]
 fn finite_breakdown_concrete_form() -> Result<(), &'static str> {
-    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::new(vec![
+    let set = FiniteScoreSet::<f64, &str, ConcreteKind>::normalize(vec![
         (2.0, ConcreteKind::Zero(ConstMetric::new("zero", 0.0))),
         (3.0, ConcreteKind::One(ConstMetric::new("one", 1.0))),
     ])?;

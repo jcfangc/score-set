@@ -167,7 +167,7 @@ impl<T: Float, E> FiniteMember<T, E> {
 /// `eval` method dispatches via `match` — zero vtable overhead for all
 /// non-`Custom` variants.
 ///
-/// Construct via [`FiniteScoreSet::new`], then call
+/// Construct via [`FiniteScoreSet::normalize`], then call
 /// [`.score()`](FiniteScoreSet::score).
 ///
 /// # Type parameters
@@ -180,7 +180,7 @@ impl<T: Float, E> FiniteMember<T, E> {
 /// # Example
 ///
 /// ```ignore
-/// let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::new(vec![
+/// let set = FiniteScoreSet::<f64, &str, TestKind<f64, &str>>::normalize(vec![
 ///     (2.0, TestKind::AlwaysZero(ConstMetric::new("zero", 0.0))),
 ///     (3.0, TestKind::AlwaysOne(ConstMetric::new("one", 1.0))),
 /// ])?;
@@ -194,11 +194,11 @@ pub struct FiniteScoreSet<T: Float, I, E> {
 }
 
 impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSet<T, I, E> {
-    /// Create a new `FiniteScoreSet` from a list of `(weight, metric_enum)` pairs.
+    /// Normalize raw weights and validate the resulting set.
     ///
     /// Each weight must be finite and strictly positive. Weights are normalized
     /// to sum to 1.
-    pub fn new(entries: Vec<(T, E)>) -> Result<Self, &'static str> {
+    pub fn normalize(entries: Vec<(T, E)>) -> Result<Self, &'static str> {
         if entries.is_empty() {
             return Err("FiniteScoreSet: must have at least one member");
         }
@@ -447,7 +447,7 @@ impl<T: Float, I, E: DynMetric<T, I>> FiniteScoreSetBuilder<T, I, E> {
     /// Returns an error if no members were pushed.
     #[inline]
     pub fn build(self) -> Result<FiniteScoreSet<T, I, E>, &'static str> {
-        FiniteScoreSet::new(self.entries)
+        FiniteScoreSet::normalize(self.entries)
     }
 }
 
