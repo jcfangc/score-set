@@ -116,8 +116,11 @@ impl<I, T: Float, M> Map01Stage<I, T, M> {
 
     /// Asymmetric Cauchy: `1 / (1 + (raw / half)^2)`, with independent
     /// half-widths for the left (`raw < 0`) and right (`raw >= 0`) sides.
-    pub fn cauchy(self, left: T, right: T) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>>
-    {
+    pub fn cauchy(
+        self,
+        left: T,
+        right: T,
+    ) -> Metric<T, I, T, M, impl Fn(&T, &I) -> Witnessed<T, Value01>> {
         self.by(move |raw: &T, _: &I| {
             let h = if *raw < T::zero() { left } else { right };
             let v = T::one() / (T::one() + (*raw / h) * (*raw / h));
@@ -161,6 +164,23 @@ where
     #[inline]
     pub fn name(&self) -> &str {
         self.name
+    }
+}
+
+// Separate impl block for .boxed() — requires 'static for Box<dyn>.
+impl<T: Float, I: 'static, Raw: 'static, M: 'static, F: 'static> Metric<T, I, Raw, M, F>
+where
+    M: Fn(&I) -> Raw,
+    F: Fn(&Raw, &I) -> Witnessed<T, Value01>,
+{
+    /// Box this metric as a `Box<dyn Scorable<T, I>>` for use in
+    /// [`DynamicScoreSet`](crate::DynamicScoreSet).
+    ///
+    /// This is a convenience over `Box::new(metric)` — it infers the
+    /// `Scorable` type automatically, avoiding an explicit annotation.
+    #[inline]
+    pub fn boxed(self) -> Box<dyn crate::Scorable<T, I>> {
+        Box::new(self)
     }
 }
 

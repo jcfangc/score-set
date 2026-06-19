@@ -18,7 +18,7 @@ repos:
 
       - id: codegen-check
         name: codegen dry-run diff check
-        entry: bash -c 'cargo run -p xtask -- gen --max 8 && git diff --exit-code -- src/gen_tuple.rs'
+        entry: bash -c 'cargo run -p xtask -- gen --max 8 && git diff --exit-code -- src/fixed_tuple.rs src/finite_enum.rs Cargo.toml'
         language: system
         pass_filenames: false
         types: [rust]

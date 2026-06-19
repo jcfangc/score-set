@@ -1,37 +1,14 @@
-# CLAUDE.md
+# score-set
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+混合 Rust 库 + Python 包。Rust crate（`src/lib.rs`）和 Python 包（`pyproject.toml`）共用相同的名称和版本号。
 
-## 项目
+通用约定参见父级：`../CLAUDE.md`
 
-混合 Rust 库 + Python 包，名为 **score-set**。Rust crate（`src/lib.rs`）和 Python 包（`pyproject.toml`）共用相同的名称和版本号。
-
-## 约定
-
-- 修改 Rust 代码后，优先运行 `cargo test --locked` 验证。
-- `tests_for_*` — 私有测试模块，声明在对应父抽象文件中（如 `value.rs` 内 `#[cfg(test)] #[path = "..."] mod tests_for_value;`），不在 `lib.rs` 中集中声明。
-- `impls_for_*` — 当某个抽象存在可聚类的 API（如都围绕同一 trait、同一运算族），将其额外实现抽到 `impls_for_*` 模块，避免主文件膨胀。
-- 测试辅助模块统一命名为 `lab`（如 `mod lab;`）。
-- 优先使用工具链 CLI 生成代码（如 `cargo run -p xtask -- gen --max <N>` 生成 `gen_tuple.rs`），避免手搓可自动生成的模板。
-- 修改前先给出计划，修改后给出 diff 摘要和 commit message。
-
-## 常用命令
-
-### Rust
+## 项目特有命令
 
 ```bash
-cargo build                     # 构建库
-cargo test --locked             # 运行所有 Rust 测试（锁定依赖）
-cargo test -- <NAME>            # 按名称运行单个测试
-cargo clippy                    # 代码检查
-cargo fmt -p score-set           # 格式化代码（workspace 需指定包）
-cargo run -p xtask -- gen --max 8  # 重新生成 gen_tuple.rs
-```
-
-### Python
-
-```bash
-uv sync                         # 安装依赖（添加依赖后使用）
+cargo run -p xtask -- gen --max 8  # 重新生成 fixed_tuple.rs, finite_enum.rs 和 Cargo.toml features
+uv sync                            # 安装 Python 依赖
 ```
 
 ## 架构
@@ -43,13 +20,12 @@ uv sync                         # 安装依赖（添加依赖后使用）
 - **`src/set.rs`** — `RawMetricSet`（不含 `T` 泛型，`T` 由 `aggregate` 方法推断）、`MetricSet`、`ScoreStage`。
 - **`src/strategy.rs`** — `weighted_mean` 聚合策略。
 - **`src/macros.rs`** — `score_set!` 宏（只做 raw member 包装，不选聚合策略）。
-- **`src/gen_tuple.rs`** — xtask 生成的 per-arity `Members` trait 实现（arity 1 手写，2+ 用宏；feature-gated）。
+- **`src/fixed_tuple.rs`** — xtask 生成的 per-arity `Members` trait 实现（arity 1 手写，2+ 用宏；feature-gated by `fixed-tuple-N`）。
+- **`src/finite_enum.rs`** — xtask 生成的匿名零虚表枚举 `FiniteEnum1`..`FiniteEnumN`，供 `finite_score_set!` 宏使用（feature-gated by `finite-enum-N`）。
 - **`xtask/`** — 代码生成工具（workspace member），生成后自动 `cargo fmt`。
 - **`pyproject.toml`** — Python 包声明（尚无源码）。
 
 ## 模块与测试从属关系
-
-每个源文件声明自己的测试模块，测试文件放在父目录下：
 
 ```
 src/
