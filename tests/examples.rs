@@ -9,6 +9,41 @@ use core::marker::PhantomData;
 use score_set::*;
 
 // ===========================================================================
+// Test helper — a metric returning a constant [0,1] value
+// ===========================================================================
+
+struct ConstMetric<T: Float, I> {
+    name: &'static str,
+    value: T,
+    _phantom: PhantomData<I>,
+}
+
+impl<T: Float, I> ConstMetric<T, I> {
+    fn new(name: &'static str, value: T) -> Self {
+        Self {
+            name,
+            value,
+            _phantom: PhantomData,
+        }
+    }
+    fn eval(&self, _input: &I) -> Witnessed<T, Value01> {
+        Value01::witness(self.value.min(T::one()).max(T::zero())).unwrap()
+    }
+    fn name(&self) -> &str {
+        self.name
+    }
+}
+
+impl<T: Float, I> DynMetric<T, I> for ConstMetric<T, I> {
+    fn eval(&self, input: &I) -> Witnessed<T, Value01> {
+        ConstMetric::eval(self, input)
+    }
+    fn name(&self) -> &str {
+        ConstMetric::name(self)
+    }
+}
+
+// ===========================================================================
 // Domain input type
 // ===========================================================================
 
@@ -207,20 +242,37 @@ fn restaurant_scoring_layer2_inspect() -> Result<(), &'static str> {
 
 #[test]
 fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
-    // Suppose we need a metric that doesn't fit the pre-declared enum.
-    // The Custom variant accepts any Box<dyn DynMetric>.
-    let wait_metric = metric("wait_time")
+    // When you need the Custom escape hatch for a one-off dynamic metric,
+    // use the generic form of `finite_metric!` and declare `Custom` explicitly.
+    // (The concrete form no longer auto-generates Custom — no dead-code warning
+    // when you don't need it.)
+    finite_metric! {
+        DemoMetricWithCustom<T, I> =>
+            AlwaysZero(ConstMetric<T, I>),
+            AlwaysOne(ConstMetric<T, I>),
+            Custom(Box<dyn DynMetric<T, I>>),
+    }
+
+    let wait_metric: Box<dyn DynMetric<f64, Restaurant>> = metric("wait_time")
         .measure()
         .by(|r: &Restaurant| r.wait_minutes)
         .map01()
         .linear(30.0)
-        .boxed(); // P0 improvement!
+        .boxed();
 
+    // Generic form requires turbofish at each variant constructor and in the
+    // FiniteScoreSet type annotation.
+    use DemoMetricWithCustom as D;
     let set = FiniteScoreSet::normalize(vec![
-        (1.0, RestaurantMetric::Clean(Cleanliness::new())),
-        (1.0, RestaurantMetric::Quality(FoodQuality::new())),
-        (1.0, RestaurantMetric::Price(PriceScore::new())),
-        (1.0, RestaurantMetric::Custom(wait_metric)),
+        (
+            1.0,
+            D::<f64, Restaurant>::AlwaysZero(ConstMetric::new("zero", 0.0)),
+        ),
+        (
+            1.0,
+            D::<f64, Restaurant>::AlwaysOne(ConstMetric::new("one", 1.0)),
+        ),
+        (1.0, D::<f64, Restaurant>::Custom(wait_metric)),
     ])?;
 
     let r = Restaurant {
@@ -230,9 +282,9 @@ fn restaurant_scoring_layer2_custom_escape_hatch() -> Result<(), &'static str> {
         wait_minutes: 15.0,
     };
     let total = set.sum(&r);
-    // All metrics at max (1.0) except wait = 0.5. Equal weights = 0.25 each.
-    // total = 0.25*1 + 0.25*1 + 0.25*1 + 0.25*0.5 = 0.875
-    assert!((total - 0.875).abs() < 1e-10);
+    // Weights: 1/3 each. zero=0 → 0, one=1 → 1/3, wait=0.5 → 1/3*0.5=1/6
+    // total = 0 + 1/3 + 1/6 = 0.5
+    assert!((total - 0.5).abs() < 1e-10);
 
     Ok(())
 }
@@ -351,29 +403,6 @@ fn restaurant_scoring_layer3() -> Result<(), &'static str> {
 // ===========================================================================
 // Demonstration: generic form (when metric types ARE generic)
 // ===========================================================================
-
-/// A generic metric that always returns a constant.
-struct ConstMetric<T: Float, I> {
-    name: &'static str,
-    value: T,
-    _phantom: PhantomData<I>,
-}
-
-impl<T: Float, I> ConstMetric<T, I> {
-    fn new(name: &'static str, value: T) -> Self {
-        Self {
-            name,
-            value,
-            _phantom: PhantomData,
-        }
-    }
-    fn eval(&self, _: &I) -> Witnessed<T, Value01> {
-        Value01::witness(self.value.min(T::one()).max(T::zero())).unwrap()
-    }
-    fn name(&self) -> &str {
-        self.name
-    }
-}
 
 // Generic form: enum is parameterized over T and I.
 // Useful when the same metric types work for multiple input types.

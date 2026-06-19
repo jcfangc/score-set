@@ -23,8 +23,7 @@
 /// }
 /// ```
 ///
-/// **Concrete form** — when variant types have fixed `T, I`.
-/// The `Custom` escape hatch is auto-generated:
+/// **Concrete form** — when variant types have fixed `T, I`:
 ///
 /// ```ignore
 /// finite_metric! {
@@ -80,8 +79,6 @@ macro_rules! finite_metric {
     };
 
     // ---- concrete form: Foo(T, I) (T, I are concrete types) ----
-    // Custom escape hatch is auto-generated — users only list their
-    // business-logic variants.
     (
         $(#[$attr:meta])*
         $vis:vis $name:ident ( $T:ty , $I:ty ) =>
@@ -91,23 +88,20 @@ macro_rules! finite_metric {
         #[allow(clippy::pub_enum_variant_fields)]
         $vis enum $name {
             $($variant($ty),)+
-            Custom(Box<dyn $crate::DynMetric<$T, $I>>),
         }
 
         impl $crate::DynMetric<$T, $I> for $name {
             #[inline]
             fn eval(&self, input: &$I) -> $crate::Witnessed<$T, $crate::Value01> {
                 match self {
-                    $(Self::$variant(m) => m.eval(input),)+
-                    Self::Custom(c) => c.eval(input),
+                    $(Self::$variant(m) => m.eval(input)),+
                 }
             }
 
             #[inline]
             fn name(&self) -> &str {
                 match self {
-                    $(Self::$variant(m) => m.name(),)+
-                    Self::Custom(c) => c.name(),
+                    $(Self::$variant(m) => m.name()),+
                 }
             }
         }
