@@ -79,7 +79,7 @@ impl<T: Float, I> Scorable<T, I> for Box<dyn Scorable<T, I>> {
 
 use crate::breakdown::Breakdown;
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight};
-use core::marker::PhantomData;
+
 use witnessed::WitnessExt;
 
 // ---------------------------------------------------------------------------
@@ -149,7 +149,6 @@ impl<T: Float, I> DynamicMember<T, I> {
 /// ```
 pub struct DynamicScoreSet<T: Float, I> {
     members: Vec<DynamicMember<T, I>>,
-    _phantom: PhantomData<I>,
 }
 
 impl<T: Float, I> DynamicScoreSet<T, I> {
@@ -188,10 +187,7 @@ impl<T: Float, I> DynamicScoreSet<T, I> {
             })
             .collect::<Result<Vec<_>, &'static str>>()?;
 
-        Ok(DynamicScoreSet {
-            members,
-            _phantom: PhantomData,
-        })
+        Ok(DynamicScoreSet { members })
     }
 
     /// Evaluate all metrics against `input` and sum their weighted contributions.
