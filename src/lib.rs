@@ -1,73 +1,84 @@
 //! # score-set
 //!
-//! A Rust library for building **weighted scoring operator sets** with three
-//! dispatch strategies — from compile-time fixed to fully dynamic.
+//! A Rust library for building **weighted scoring operators** as composable
+//! closures.
 //!
-//! It does not prescribe a unified input or context type. Instead it declares,
-//! stores, normalizes, and combines a set of weighted operators.
+//! Define metrics via a builder pipeline, combine them with weights, and
+//! produce a closure — either a weighted sum function or a breakdown iterator.
+//! The downstream caller only sees `impl Fn(&C) -> Score` or
+//! `impl Fn(&C) -> Vec<Breakdown>`.
 //!
-//! # Three-layer architecture
-//!
-//! | Layer | Type | Dispatch | When to use |
-//! |---|---|---|---|
-//! | 1 — fixed | [`FixedScoreSet`] via [`fixed_score_set!`] | Compile-time, zero vtable | Known metric set at compile time |
-//! | 2 — finite | [`FiniteScoreSet`] via [`finite_score_set!`] | Enum match, zero vtable | Runtime composition, known metric types |
-//! | 3 — dynamic | [`DynamicScoreSet`] via [`dynamic_score_set!`] | Vtable per call | Fully heterogeneous, runtime assembly |
-//!
-//! # Quick example (Layer 1 — fixed)
+//! # Quick example
 //!
 //! ```ignore
 //! use score_set::*;
 //!
-//! let gc = metric("gc")
-//!     .measure().by(|dna: &&str| gc_ratio(dna))
-//!     .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
+//! struct DnaCtx<'a> {
+//!     dna: &'a str,
+//!     len: usize,
+//! }
 //!
-//! let len = metric("len")
-//!     .measure().by(|len: &usize| *len)
-//!     .map01().by(|raw: &usize, _: &usize| {
-//!         Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
-//!     });
+//! let gc = metric32("gc")
+//!     .measure()
+//!     .by(|ctx: &DnaCtx| gc_ratio(ctx.dna) as f32)
+//!     .map01()
+//!     .identity();
 //!
-//! let ms = fixed_score_set! {
-//!     2.0 => gc,
-//!     3.0 => len,
-//! }?;
+//! let len = metric32("len")
+//!     .measure()
+//!     .by(|ctx: &DnaCtx| ctx.len as f32)
+//!     .map01()
+//!     .linear(100.0);
 //!
-//! let dna = "ACGTACGT";
-//! let score = ms.score().by(|(gc, len)| {
-//!     gc.contribute(gc.metric().eval(&dna))
-//!         + len.contribute(len.metric().eval(&dna.len()))
-//! });
+//! let scorer = ScoreSet32::new()
+//!     .push(2.0, gc)?
+//!     .push(1.0, len)?
+//!     .sum()?;
+//!
+//! let ctx = DnaCtx { dna: "ACGTACGT", len: 8 };
+//! let total = scorer(&ctx);
 //! # Ok::<(), &'static str>(())
 //! ```
+//!
+//! # no_std
+//!
+//! This crate is `#![no_std]` with `extern crate alloc` — it only needs
+//! `Vec` and `String` from the allocator and works on bare-metal targets.
 
-mod breakdown;
-mod dynamic;
-mod finite;
-pub mod finite_enum;
-mod fixed;
-mod fixed_tuple;
-mod float;
-mod macros;
-mod member;
-mod metric;
+#![no_std]
+extern crate alloc;
+
+#[cfg(test)]
+extern crate std;
+
+// Three-state precision selection:
+//   default        → f32  only (ScoreSet32, Metric32, … at crate root)
+//   f64            → f64  only (ScoreSet64, Metric64, … at crate root)
+//   f64 + both     → f32 + f64 (ScoreSet32 + ScoreSet64 at crate root)
+// All modules are private — users only depend on re-exported types.
+
+#[cfg(not(feature = "f64"))]
+mod metric_f32;
+#[cfg(not(feature = "f64"))]
+pub use metric_f32::*;
+
+#[cfg(all(feature = "f64", not(feature = "both")))]
+mod metric_f64;
+#[cfg(all(feature = "f64", not(feature = "both")))]
+pub use metric_f64::*;
+
+#[cfg(all(feature = "f64", feature = "both"))]
+mod metric_f32;
+#[cfg(all(feature = "f64", feature = "both"))]
+mod metric_f64;
+#[cfg(all(feature = "f64", feature = "both"))]
+pub use metric_f32::*;
+#[cfg(all(feature = "f64", feature = "both"))]
+pub use metric_f64::*;
+
 mod value;
-
-// Public API
-pub use breakdown::Breakdown;
-pub use dynamic::{
-    DynamicMember, DynamicScoreSet, DynamicScoreSetBuilder, DynamicScoreStage, Scorable,
-};
-pub use finite::{FiniteMember, FiniteScoreSet, FiniteScoreSetBuilder, FiniteScoreStage};
-pub use finite_enum::*;
-pub use fixed::{FixedScoreSet, FixedScoreStage};
-pub use float::Float;
-// fixed_score_set!, dynamic_score_set!, and finite_metric! are exported at crate root via #[macro_export]
-pub use member::{Member, Members, RawMember, raw_member};
-pub use metric::{Metric, metric};
-pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
+pub use value::{GtZero, NormalizedContainer, NormalizedWeight, ScoreOps, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]
-mod lab;
+mod test_support;

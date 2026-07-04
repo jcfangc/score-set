@@ -17,14 +17,14 @@ fn value01_rejects_out_of_range() {
 
 #[test]
 fn normalized_container_witness() {
-    assert!(NormalizedContainer::witness(vec![0.2_f64, 0.3, 0.5]).is_ok());
-    assert!(NormalizedContainer::witness(vec![0.2_f64, 0.3]).is_err());
-    assert!(NormalizedContainer::witness(vec![1.2_f64, -0.2]).is_err());
+    assert!(NormalizedContainer::witness(alloc::vec![0.2_f64, 0.3, 0.5]).is_ok());
+    assert!(NormalizedContainer::witness(alloc::vec![0.2_f64, 0.3]).is_err());
+    assert!(NormalizedContainer::witness(alloc::vec![1.2_f64, -0.2]).is_err());
 }
 
 #[test]
 fn weighted_value_product() {
-    let container = NormalizedContainer::witness(vec![1.0_f64]).unwrap();
+    let container = NormalizedContainer::witness(alloc::vec![1.0_f64]).unwrap();
     let v = Value01::witness(0.6_f64).unwrap();
     let w = 1.0_f64
         .witness()
@@ -37,7 +37,7 @@ fn weighted_value_product() {
 #[test]
 fn f32_support() {
     assert!(Value01::witness(0.5_f32).is_ok());
-    let container = NormalizedContainer::witness(vec![0.25_f32, 0.25, 0.5]).unwrap();
+    let container = NormalizedContainer::witness(alloc::vec![0.25_f32, 0.25, 0.5]).unwrap();
     let nw = 0.25_f32
         .witness()
         .by(|v| NormalizedWeight::from_normalized_container(*v, &container))
