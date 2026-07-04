@@ -39,6 +39,17 @@
 //! let total = scorer(&ctx);
 //! # Ok::<(), &'static str>(())
 //! ```
+//!
+//! # no_std
+//!
+//! This crate is `#![no_std]` with `extern crate alloc` — it only needs
+//! `Vec` and `String` from the allocator and works on bare-metal targets.
+
+#![no_std]
+extern crate alloc;
+
+#[cfg(test)]
+extern crate std;
 
 // Three-state precision selection:
 //   default        → f32  only (ScoreSet32, Metric32, … at crate root)

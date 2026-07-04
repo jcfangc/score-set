@@ -17,6 +17,7 @@ exclude = [
 ]
 
 [dependencies]
+libm = "0.2"
 witnessed = "0.8.0"
 
 # Precision features (default: f32 only).

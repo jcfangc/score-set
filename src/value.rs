@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::ops::{Add, Mul, Sub};
 use witnessed::{WitnessExt, Witnessed};
 

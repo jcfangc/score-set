@@ -4,6 +4,8 @@
 //! builder pipeline, combine them into a [`ScoreSet32`], and produce a closure
 //! that evaluates any `&C` context to either a weighted sum or a breakdown.
 
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 use witnessed::{WitnessExt, Witnessed};
 
@@ -81,13 +83,13 @@ impl Map0132 {
                 debug_assert!(high > low, "IncSigmoid: high must exceed low");
                 let mid = (low + high) / 2.0;
                 let steep = 10.0 / (high - low);
-                1.0 / (1.0 + (-steep * (raw - mid)).exp())
+                1.0 / (1.0 + libm::expf(-steep * (raw - mid)))
             }
             Self::DecSigmoid { low, high } => {
                 debug_assert!(high > low, "DecSigmoid: high must exceed low");
                 let mid = (low + high) / 2.0;
                 let steep = 10.0 / (high - low);
-                1.0 / (1.0 + (steep * (raw - mid)).exp())
+                1.0 / (1.0 + libm::expf(steep * (raw - mid)))
             }
             Self::Cauchy { center, scale } => {
                 let z = (raw - center) / scale;
@@ -334,7 +336,7 @@ impl<C> Evaluator32<C> {
 /// Produced by [`Evaluator32::iter`]. Zero-allocation — each row is
 /// computed on the fly. Implements [`ExactSizeIterator`].
 pub struct BreakdownIter32<'a, C> {
-    inner: std::slice::Iter<'a, NormalizedMember32<C>>,
+    inner: core::slice::Iter<'a, NormalizedMember32<C>>,
     ctx: &'a C,
 }
 
