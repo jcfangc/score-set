@@ -10,7 +10,7 @@ description = "A Rust library for building static weighted scoring operator sets
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jcfangc/score-set"
 keywords = ["scoring", "weighted", "metric", "static", "score"]
-categories = ["algorithms", "science"]
+categories = ["algorithms", "no-std", "science"]
 exclude = [
     "src/lab.rs",
     "src/**/tests_for_*.rs",
