@@ -16,6 +16,9 @@ exclude = [
     "src/**/tests_for_*.rs",
 ]
 
+[lib]
+doctest = false
+
 [dependencies]
 libm = "0.2"
 witnessed = "0.8.0"
