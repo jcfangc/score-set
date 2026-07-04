@@ -1,4 +1,4 @@
-//! Core implementation for `Score = f64`.
+//! Core implementation for `Score64 = f64`.
 //!
 //! This module provides the complete scoring framework: define metrics via a
 //! builder pipeline, combine them into a [`ScoreSet64`], and produce a closure
@@ -10,11 +10,11 @@ use witnessed::{WitnessExt, Witnessed};
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 
 // ---------------------------------------------------------------------------
-// Score type alias
+// Score64 type alias
 // ---------------------------------------------------------------------------
 
 /// The floating-point type used for all scores, weights, and contributions.
-pub type Score = f64;
+pub type Score64 = f64;
 
 // ---------------------------------------------------------------------------
 // Map0164 — normalization strategy (data, not closures)
@@ -32,34 +32,34 @@ pub enum Map0164 {
     /// `raw / max`, clamped to `[0, 1]`.
     Linear {
         /// Upper bound for the raw value.
-        max: Score,
+        max: Score64,
     },
     /// Increasing sigmoid: `low → 0`, `high → 1`.
     IncSigmoid {
         /// Lower bound (≈0).
-        low: Score,
+        low: Score64,
         /// Upper bound (≈1).
-        high: Score,
+        high: Score64,
     },
     /// Decreasing sigmoid: `low → 1`, `high → 0`.
     DecSigmoid {
         /// Lower bound (≈1).
-        low: Score,
+        low: Score64,
         /// Upper bound (≈0).
-        high: Score,
+        high: Score64,
     },
     /// Cauchy (Lorentzian) distribution, symmetric about `center`.
     Cauchy {
         /// Peak center.
-        center: Score,
+        center: Score64,
         /// Scale parameter.
-        scale: Score,
+        scale: Score64,
     },
     /// User-provided normalization function.
     ///
     /// The function receives the raw measure value and must return a value in
     /// `[0, 1]`. The output is validated at evaluation time.
-    Custom(fn(Score) -> Score),
+    Custom(fn(Score64) -> Score64),
 }
 
 impl Map0164 {
@@ -68,7 +68,7 @@ impl Map0164 {
     /// Returns the normalized value. For `Custom`, the output is validated;
     /// for all other variants correctness is guaranteed by construction.
     #[inline]
-    pub fn apply(&self, raw: Score) -> Result<Witnessed<Score, Value01>, &'static str> {
+    pub fn apply(&self, raw: Score64) -> Result<Witnessed<Score64, Value01>, &'static str> {
         let v = match self {
             Self::Identity => raw.clamp(0.0, 1.0),
             Self::Linear { max } => {
@@ -105,13 +105,13 @@ impl Map0164 {
 
 /// A single named scoring metric with its normalization strategy.
 ///
-/// `Metric64<C>` combines a pure measure function `fn(&C) -> Score` with a
+/// `Metric64<C>` combines a pure measure function `fn(&C) -> Score64` with a
 /// [`Map0164`] normalization. It stores no closures that capture state, so
 /// [`Vec<Metric64<C>>`] works without trait objects.
 pub struct Metric64<C> {
     /// Human-readable name for this metric.
     pub name: String,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score64,
     map01: Map0164,
 }
 
@@ -120,7 +120,7 @@ impl<C> Metric64<C> {
     ///
     /// Returns the normalized score in `[0, 1]`, witnessed by [`Value01`].
     #[inline]
-    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score, Value01>, &'static str> {
+    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score64, Value01>, &'static str> {
         let raw = (self.measure)(ctx);
         self.map01.apply(raw)
     }
@@ -142,7 +142,7 @@ impl<C> Clone for Metric64<C> {
 
 /// Entry point for building a [`Metric64`].
 ///
-/// Created by [`metric`].
+/// Created by [`metric64`].
 pub struct MetricNamingStage64 {
     name: &'static str,
 }
@@ -161,12 +161,12 @@ pub struct MeasureStage64 {
 }
 
 impl MeasureStage64 {
-    /// Provide the measure function `fn(&C) -> Score`.
+    /// Provide the measure function `fn(&C) -> Score64`.
     ///
     /// The function must be a non-capturing closure or fn pointer that extracts
     /// a raw score from the context `C`.
     #[inline]
-    pub fn by<C>(self, measure: fn(&C) -> Score) -> MeasuredStage64<C> {
+    pub fn by<C>(self, measure: fn(&C) -> Score64) -> MeasuredStage64<C> {
         MeasuredStage64 {
             name: self.name,
             measure,
@@ -178,7 +178,7 @@ impl MeasureStage64 {
 /// Has a measure function, waiting for a [`Map0164`] strategy.
 pub struct MeasuredStage64<C> {
     name: &'static str,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score64,
     _phantom: PhantomData<C>,
 }
 
@@ -197,7 +197,7 @@ impl<C> MeasuredStage64<C> {
 /// Waiting for a normalization strategy.
 pub struct Map01Stage64<C> {
     name: &'static str,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score64,
     _phantom: PhantomData<C>,
 }
 
@@ -214,7 +214,7 @@ impl<C> Map01Stage64<C> {
 
     /// Linear normalization: `raw / max`, clamped to `[0, 1]`.
     #[inline]
-    pub fn linear(self, max: Score) -> Metric64<C> {
+    pub fn linear(self, max: Score64) -> Metric64<C> {
         Metric64 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -226,7 +226,7 @@ impl<C> Map01Stage64<C> {
     ///
     /// Uses a logistic curve with steepness `10 / (high - low)`.
     #[inline]
-    pub fn inc_sigmoid(self, low: Score, high: Score) -> Metric64<C> {
+    pub fn inc_sigmoid(self, low: Score64, high: Score64) -> Metric64<C> {
         Metric64 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -238,7 +238,7 @@ impl<C> Map01Stage64<C> {
     ///
     /// Uses a logistic curve with steepness `10 / (high - low)`, flipped.
     #[inline]
-    pub fn dec_sigmoid(self, low: Score, high: Score) -> Metric64<C> {
+    pub fn dec_sigmoid(self, low: Score64, high: Score64) -> Metric64<C> {
         Metric64 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -250,7 +250,7 @@ impl<C> Map01Stage64<C> {
     ///
     /// The function peaks at `center` and decays symmetrically with `scale`.
     #[inline]
-    pub fn cauchy(self, center: Score, scale: Score) -> Metric64<C> {
+    pub fn cauchy(self, center: Score64, scale: Score64) -> Metric64<C> {
         Metric64 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -263,7 +263,7 @@ impl<C> Map01Stage64<C> {
     /// The function receives the raw measure value and must return a `[0, 1]`
     /// score. Output is validated via [`Value01::witness`] at evaluation time.
     #[inline]
-    pub fn by(self, map01: fn(Score) -> Score) -> Metric64<C> {
+    pub fn by(self, map01: fn(Score64) -> Score64) -> Metric64<C> {
         Metric64 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -284,11 +284,11 @@ pub struct Breakdown64 {
     /// Metric name.
     pub name: String,
     /// Normalized score in `[0, 1]`.
-    pub score: Score,
+    pub score: Score64,
     /// Normalized weight (sums to 1 across all metrics).
-    pub weight: Score,
+    pub weight: Score64,
     /// `score * weight`.
-    pub contribution: Score,
+    pub contribution: Score64,
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@ pub struct Breakdown64 {
 /// let total: f64 = scorer(&ctx);
 /// ```
 pub struct ScoreSet64<C> {
-    entries: Vec<(Score, Metric64<C>)>,
+    entries: Vec<(Score64, Metric64<C>)>,
 }
 
 impl<C> ScoreSet64<C> {
@@ -328,7 +328,7 @@ impl<C> ScoreSet64<C> {
     /// The weight must be finite and strictly positive. Normalization happens
     /// when [`sum`](Self::sum) or [`breakdown`](Self::breakdown) is called.
     #[inline]
-    pub fn push(mut self, weight: Score, metric: Metric64<C>) -> Result<Self, &'static str> {
+    pub fn push(mut self, weight: Score64, metric: Metric64<C>) -> Result<Self, &'static str> {
         let _validated = GtZero::witness(weight)?;
         self.entries.push((weight, metric));
         Ok(self)
@@ -337,16 +337,16 @@ impl<C> ScoreSet64<C> {
     /// Consume the builder and return a weighted-sum closure.
     ///
     /// Normalizes all weights so they sum to 1, then returns a closure
-    /// `impl Fn(&C) -> Score` that evaluates every metric against the context
+    /// `impl Fn(&C) -> Score64` that evaluates every metric against the context
     /// and returns the weighted sum.
     ///
     /// # Errors
     ///
     /// Returns an error if the set is empty or if weight normalization fails.
-    pub fn sum(self) -> Result<impl Fn(&C) -> Score, &'static str> {
+    pub fn sum(self) -> Result<impl Fn(&C) -> Score64, &'static str> {
         let members = self.normalize()?;
         Ok(move |ctx: &C| {
-            let mut total: Score = 0.0;
+            let mut total: Score64 = 0.0;
             for m in &members {
                 if let Ok(score) = m.metric.eval(ctx) {
                     total += score.into_inner() * m.weight.into_inner();
@@ -390,9 +390,9 @@ impl<C> ScoreSet64<C> {
             return Err("ScoreSet64: must contain at least one metric");
         }
 
-        let raw_weights: Vec<Score> = self.entries.iter().map(|(w, _)| *w).collect();
-        let sum: Score = raw_weights.iter().sum();
-        let normalized_raw: Vec<Score> = raw_weights.iter().map(|w| w / sum).collect();
+        let raw_weights: Vec<Score64> = self.entries.iter().map(|(w, _)| *w).collect();
+        let sum: Score64 = raw_weights.iter().sum();
+        let normalized_raw: Vec<Score64> = raw_weights.iter().map(|w| w / sum).collect();
 
         // Sort a clone for binary search in NormalizedContainer
         let mut sorted = normalized_raw.clone();
@@ -425,7 +425,7 @@ impl<C> Default for ScoreSet64<C> {
 
 /// Internal: a metric paired with its normalized, witnessed weight.
 struct NormalizedMember64<C> {
-    weight: Witnessed<Score, NormalizedWeight>,
+    weight: Witnessed<Score64, NormalizedWeight>,
     metric: Metric64<C>,
 }
 

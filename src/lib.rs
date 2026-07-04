@@ -56,9 +56,13 @@ mod metric_f64;
 pub use metric_f64::*;
 
 #[cfg(all(feature = "f64", feature = "both"))]
-pub mod metric_f32;
+mod metric_f32;
 #[cfg(all(feature = "f64", feature = "both"))]
-pub mod metric_f64;
+mod metric_f64;
+#[cfg(all(feature = "f64", feature = "both"))]
+pub use metric_f32::*;
+#[cfg(all(feature = "f64", feature = "both"))]
+pub use metric_f64::*;
 
 mod value;
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, ScoreOps, Value01};

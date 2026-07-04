@@ -1,4 +1,4 @@
-//! Core implementation for `Score = f32`.
+//! Core implementation for `Score32 = f32`.
 //!
 //! This module provides the complete scoring framework: define metrics via a
 //! builder pipeline, combine them into a [`ScoreSet32`], and produce a closure
@@ -10,11 +10,11 @@ use witnessed::{WitnessExt, Witnessed};
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 
 // ---------------------------------------------------------------------------
-// Score type alias
+// Score32 type alias
 // ---------------------------------------------------------------------------
 
 /// The floating-point type used for all scores, weights, and contributions.
-pub type Score = f32;
+pub type Score32 = f32;
 
 // ---------------------------------------------------------------------------
 // Map0132 — normalization strategy (data, not closures)
@@ -32,34 +32,34 @@ pub enum Map0132 {
     /// `raw / max`, clamped to `[0, 1]`.
     Linear {
         /// Upper bound for the raw value.
-        max: Score,
+        max: Score32,
     },
     /// Increasing sigmoid: `low → 0`, `high → 1`.
     IncSigmoid {
         /// Lower bound (≈0).
-        low: Score,
+        low: Score32,
         /// Upper bound (≈1).
-        high: Score,
+        high: Score32,
     },
     /// Decreasing sigmoid: `low → 1`, `high → 0`.
     DecSigmoid {
         /// Lower bound (≈1).
-        low: Score,
+        low: Score32,
         /// Upper bound (≈0).
-        high: Score,
+        high: Score32,
     },
     /// Cauchy (Lorentzian) distribution, symmetric about `center`.
     Cauchy {
         /// Peak center.
-        center: Score,
+        center: Score32,
         /// Scale parameter.
-        scale: Score,
+        scale: Score32,
     },
     /// User-provided normalization function.
     ///
     /// The function receives the raw measure value and must return a value in
     /// `[0, 1]`. The output is validated at evaluation time.
-    Custom(fn(Score) -> Score),
+    Custom(fn(Score32) -> Score32),
 }
 
 impl Map0132 {
@@ -68,7 +68,7 @@ impl Map0132 {
     /// Returns the normalized value. For `Custom`, the output is validated;
     /// for all other variants correctness is guaranteed by construction.
     #[inline]
-    pub fn apply(&self, raw: Score) -> Result<Witnessed<Score, Value01>, &'static str> {
+    pub fn apply(&self, raw: Score32) -> Result<Witnessed<Score32, Value01>, &'static str> {
         let v = match self {
             Self::Identity => raw.clamp(0.0, 1.0),
             Self::Linear { max } => {
@@ -105,13 +105,13 @@ impl Map0132 {
 
 /// A single named scoring metric with its normalization strategy.
 ///
-/// `Metric32<C>` combines a pure measure function `fn(&C) -> Score` with a
+/// `Metric32<C>` combines a pure measure function `fn(&C) -> Score32` with a
 /// [`Map0132`] normalization. It stores no closures that capture state, so
 /// [`Vec<Metric32<C>>`] works without trait objects.
 pub struct Metric32<C> {
     /// Human-readable name for this metric.
     pub name: String,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score32,
     map01: Map0132,
 }
 
@@ -120,7 +120,7 @@ impl<C> Metric32<C> {
     ///
     /// Returns the normalized score in `[0, 1]`, witnessed by [`Value01`].
     #[inline]
-    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score, Value01>, &'static str> {
+    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score32, Value01>, &'static str> {
         let raw = (self.measure)(ctx);
         self.map01.apply(raw)
     }
@@ -142,7 +142,7 @@ impl<C> Clone for Metric32<C> {
 
 /// Entry point for building a [`Metric32`].
 ///
-/// Created by [`metric`].
+/// Created by [`metric32`].
 pub struct MetricNamingStage32 {
     name: &'static str,
 }
@@ -161,12 +161,12 @@ pub struct MeasureStage32 {
 }
 
 impl MeasureStage32 {
-    /// Provide the measure function `fn(&C) -> Score`.
+    /// Provide the measure function `fn(&C) -> Score32`.
     ///
     /// The function must be a non-capturing closure or fn pointer that extracts
     /// a raw score from the context `C`.
     #[inline]
-    pub fn by<C>(self, measure: fn(&C) -> Score) -> MeasuredStage32<C> {
+    pub fn by<C>(self, measure: fn(&C) -> Score32) -> MeasuredStage32<C> {
         MeasuredStage32 {
             name: self.name,
             measure,
@@ -178,7 +178,7 @@ impl MeasureStage32 {
 /// Has a measure function, waiting for a [`Map0132`] strategy.
 pub struct MeasuredStage32<C> {
     name: &'static str,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score32,
     _phantom: PhantomData<C>,
 }
 
@@ -197,7 +197,7 @@ impl<C> MeasuredStage32<C> {
 /// Waiting for a normalization strategy.
 pub struct Map01Stage32<C> {
     name: &'static str,
-    measure: fn(&C) -> Score,
+    measure: fn(&C) -> Score32,
     _phantom: PhantomData<C>,
 }
 
@@ -214,7 +214,7 @@ impl<C> Map01Stage32<C> {
 
     /// Linear normalization: `raw / max`, clamped to `[0, 1]`.
     #[inline]
-    pub fn linear(self, max: Score) -> Metric32<C> {
+    pub fn linear(self, max: Score32) -> Metric32<C> {
         Metric32 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -226,7 +226,7 @@ impl<C> Map01Stage32<C> {
     ///
     /// Uses a logistic curve with steepness `10 / (high - low)`.
     #[inline]
-    pub fn inc_sigmoid(self, low: Score, high: Score) -> Metric32<C> {
+    pub fn inc_sigmoid(self, low: Score32, high: Score32) -> Metric32<C> {
         Metric32 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -238,7 +238,7 @@ impl<C> Map01Stage32<C> {
     ///
     /// Uses a logistic curve with steepness `10 / (high - low)`, flipped.
     #[inline]
-    pub fn dec_sigmoid(self, low: Score, high: Score) -> Metric32<C> {
+    pub fn dec_sigmoid(self, low: Score32, high: Score32) -> Metric32<C> {
         Metric32 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -250,7 +250,7 @@ impl<C> Map01Stage32<C> {
     ///
     /// The function peaks at `center` and decays symmetrically with `scale`.
     #[inline]
-    pub fn cauchy(self, center: Score, scale: Score) -> Metric32<C> {
+    pub fn cauchy(self, center: Score32, scale: Score32) -> Metric32<C> {
         Metric32 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -263,7 +263,7 @@ impl<C> Map01Stage32<C> {
     /// The function receives the raw measure value and must return a `[0, 1]`
     /// score. Output is validated via [`Value01::witness`] at evaluation time.
     #[inline]
-    pub fn by(self, map01: fn(Score) -> Score) -> Metric32<C> {
+    pub fn by(self, map01: fn(Score32) -> Score32) -> Metric32<C> {
         Metric32 {
             name: self.name.to_string(),
             measure: self.measure,
@@ -284,11 +284,11 @@ pub struct Breakdown32 {
     /// Metric name.
     pub name: String,
     /// Normalized score in `[0, 1]`.
-    pub score: Score,
+    pub score: Score32,
     /// Normalized weight (sums to 1 across all metrics).
-    pub weight: Score,
+    pub weight: Score32,
     /// `score * weight`.
-    pub contribution: Score,
+    pub contribution: Score32,
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@ pub struct Breakdown32 {
 /// let total: f32 = scorer(&ctx);
 /// ```
 pub struct ScoreSet32<C> {
-    entries: Vec<(Score, Metric32<C>)>,
+    entries: Vec<(Score32, Metric32<C>)>,
 }
 
 impl<C> ScoreSet32<C> {
@@ -328,7 +328,7 @@ impl<C> ScoreSet32<C> {
     /// The weight must be finite and strictly positive. Normalization happens
     /// when [`sum`](Self::sum) or [`breakdown`](Self::breakdown) is called.
     #[inline]
-    pub fn push(mut self, weight: Score, metric: Metric32<C>) -> Result<Self, &'static str> {
+    pub fn push(mut self, weight: Score32, metric: Metric32<C>) -> Result<Self, &'static str> {
         let _validated = GtZero::witness(weight)?;
         self.entries.push((weight, metric));
         Ok(self)
@@ -337,16 +337,16 @@ impl<C> ScoreSet32<C> {
     /// Consume the builder and return a weighted-sum closure.
     ///
     /// Normalizes all weights so they sum to 1, then returns a closure
-    /// `impl Fn(&C) -> Score` that evaluates every metric against the context
+    /// `impl Fn(&C) -> Score32` that evaluates every metric against the context
     /// and returns the weighted sum.
     ///
     /// # Errors
     ///
     /// Returns an error if the set is empty or if weight normalization fails.
-    pub fn sum(self) -> Result<impl Fn(&C) -> Score, &'static str> {
+    pub fn sum(self) -> Result<impl Fn(&C) -> Score32, &'static str> {
         let members = self.normalize()?;
         Ok(move |ctx: &C| {
-            let mut total: Score = 0.0;
+            let mut total: Score32 = 0.0;
             for m in &members {
                 if let Ok(score) = m.metric.eval(ctx) {
                     total += score.into_inner() * m.weight.into_inner();
@@ -390,9 +390,9 @@ impl<C> ScoreSet32<C> {
             return Err("ScoreSet32: must contain at least one metric");
         }
 
-        let raw_weights: Vec<Score> = self.entries.iter().map(|(w, _)| *w).collect();
-        let sum: Score = raw_weights.iter().sum();
-        let normalized_raw: Vec<Score> = raw_weights.iter().map(|w| w / sum).collect();
+        let raw_weights: Vec<Score32> = self.entries.iter().map(|(w, _)| *w).collect();
+        let sum: Score32 = raw_weights.iter().sum();
+        let normalized_raw: Vec<Score32> = raw_weights.iter().map(|w| w / sum).collect();
 
         // Sort a clone for binary search in NormalizedContainer
         let mut sorted = normalized_raw.clone();
@@ -425,7 +425,7 @@ impl<C> Default for ScoreSet32<C> {
 
 /// Internal: a metric paired with its normalized, witnessed weight.
 struct NormalizedMember32<C> {
-    weight: Witnessed<Score, NormalizedWeight>,
+    weight: Witnessed<Score32, NormalizedWeight>,
     metric: Metric32<C>,
 }
 

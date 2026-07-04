@@ -29,8 +29,8 @@ fn generate_f64() {
     let src_f64 = out_dir.join("src").join("metric_f64.rs");
 
     let content = std::fs::read_to_string(&src_f32).expect("failed to read src/metric_f32.rs");
-    let content = content.replace("pub type Score = f32;", "pub type Score = f64;");
-    let content = content.replace("Score = f32", "Score = f64");
+    let content = content.replace("pub type Score32 = f32;", "pub type Score64 = f64;");
+    let content = content.replace("Score32 = f32", "Score64 = f64");
     let content = content.replace("32", "64");
 
     std::fs::write(&src_f64, &content).expect("failed to write src/metric_f64.rs");
