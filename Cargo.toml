@@ -19,7 +19,13 @@ exclude = [
 [dependencies]
 witnessed = "0.8.0"
 
-# Enables f64-based scoring types (default: f32).
-# Run `cargo run -p xtask -- gen` to regenerate src/metric_f64.rs.
+# Precision features (default: f32 only).
+#
+#   (default)     → module metric_f32, types ScoreSet32 / Metric32 / …
+#   f64           → module metric_f64, types ScoreSet64 / Metric64 / …
+#   f64 + both    → metric_f32 + metric_f64, both type families available
+#
+# Run `cargo run -p xtask -- gen` after changing types in metric_f32.rs.
 [features]
 f64 = []
+both = ["f64"]

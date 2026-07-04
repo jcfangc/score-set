@@ -19,7 +19,8 @@ fn main() {
 }
 
 /// Generate `src/metric_f64.rs` from `src/metric_f32.rs` by replacing
-/// `f32` → `f64`, along with companion test files.
+/// `f32` → `f64` for the Score type alias, then `32` → `64` for all
+/// type/function name suffixes. Companion test files are generated the same way.
 fn generate_f64() {
     let out_dir = std::env::current_dir().unwrap();
 
@@ -30,6 +31,7 @@ fn generate_f64() {
     let content = std::fs::read_to_string(&src_f32).expect("failed to read src/metric_f32.rs");
     let content = content.replace("pub type Score = f32;", "pub type Score = f64;");
     let content = content.replace("Score = f32", "Score = f64");
+    let content = content.replace("32", "64");
 
     std::fs::write(&src_f64, &content).expect("failed to write src/metric_f64.rs");
     format_file(&src_f64);
@@ -47,8 +49,7 @@ fn generate_f64() {
         if name_str.ends_with(".rs") {
             let test_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
             let test_content = test_content.replace("f32", "f64");
-            // Fix `as f32` -> `as f64` (already handled by f32→f64 replace)
-            // Fix `fn gc_ratio` return type if it's in scope
+            let test_content = test_content.replace("32", "64");
             let dest = test_f64_dir.join(name_str);
             std::fs::write(&dest, &test_content)
                 .unwrap_or_else(|e| eprintln!("warning: {dest:?}: {e}"));

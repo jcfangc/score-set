@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 
 // ---------------------------------------------------------------------------
 // Context types
@@ -15,7 +15,7 @@ struct DnaCtx {
 
 #[test]
 fn pipeline_identity() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -34,7 +34,7 @@ fn pipeline_identity() {
 
 #[test]
 fn pipeline_linear() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -56,7 +56,7 @@ fn pipeline_linear() {
 
 #[test]
 fn pipeline_inc_sigmoid() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -73,7 +73,7 @@ fn pipeline_inc_sigmoid() {
 
 #[test]
 fn pipeline_dec_sigmoid() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -90,7 +90,7 @@ fn pipeline_dec_sigmoid() {
 
 #[test]
 fn pipeline_cauchy() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -106,7 +106,7 @@ fn pipeline_cauchy() {
 
 #[test]
 fn pipeline_custom_map01() {
-    let m = metric("test")
+    let m = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -118,7 +118,7 @@ fn pipeline_custom_map01() {
 
 #[test]
 fn custom_map01_validates_range() {
-    let m = metric("bad")
+    let m = metric32("bad")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -129,7 +129,7 @@ fn custom_map01_validates_range() {
 
 #[test]
 fn metric_name_preserved() {
-    let m = metric("cleanliness")
+    let m = metric32("cleanliness")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -140,7 +140,7 @@ fn metric_name_preserved() {
 
 #[test]
 fn metric_clone() {
-    let m1 = metric("test")
+    let m1 = metric32("test")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
@@ -153,19 +153,19 @@ fn metric_clone() {
 
 #[test]
 fn metrics_with_different_ctx_fields() -> Result<(), &'static str> {
-    let gc = metric("gc")
+    let gc = metric32("gc")
         .measure()
         .by(|ctx: &DnaCtx| ctx.gc)
         .map01()
         .identity();
 
-    let len = metric("len")
+    let len = metric32("len")
         .measure()
         .by(|ctx: &DnaCtx| ctx.len)
         .map01()
         .linear(100.0);
 
-    let scorer = ScoreSet::new().push(1.0, gc)?.push(1.0, len)?.sum()?;
+    let scorer = ScoreSet32::new().push(1.0, gc)?.push(1.0, len)?.sum()?;
 
     let ctx = DnaCtx { gc: 0.6, len: 50.0 };
     let total = scorer(&ctx);
