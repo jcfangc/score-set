@@ -34,9 +34,8 @@ fn generate_f64() {
     let content = content.replace("32", "64");
 
     std::fs::write(&src_f64, &content).expect("failed to write src/metric_f64.rs");
-    format_file(&src_f64);
 
-    // --- Test files ---
+    // --- Test files (copy before formatting main file so mods resolve) ---
     let test_f32_dir = out_dir.join("src").join("metric_f32");
     let test_f64_dir = out_dir.join("src").join("metric_f64");
     std::fs::create_dir_all(&test_f64_dir).ok();
@@ -56,6 +55,9 @@ fn generate_f64() {
             format_file(&dest);
         }
     }
+
+    // Format main file last — after all test modules exist
+    format_file(&src_f64);
 }
 
 /// Run `cargo fmt` on a generated file.

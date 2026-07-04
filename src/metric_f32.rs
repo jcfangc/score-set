@@ -454,6 +454,8 @@ pub fn metric32(name: &'static str) -> MetricNamingStage32 {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+mod tests_for_attack;
+#[cfg(test)]
 mod tests_for_metric;
 #[cfg(test)]
 mod tests_for_score_set;
