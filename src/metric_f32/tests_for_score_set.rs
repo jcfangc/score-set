@@ -21,7 +21,7 @@ struct RestaurantCtx {
 #[test]
 fn empty_set_rejected() {
     assert!(ScoreSet32::<()>::new().sum().is_err());
-    assert!(ScoreSet32::<()>::new().breakdown().is_err());
+    assert!(ScoreSet32::<()>::new().breakdown(&()).is_err());
 }
 
 #[test]
@@ -85,14 +85,14 @@ fn breakdown_matches_sum() -> Result<(), &'static str> {
         .push(2.0, gc.clone())?
         .push(1.0, len.clone())?
         .sum()?;
-    let eval = ScoreSet32::new()
-        .push(2.0, gc)?
-        .push(1.0, len)?
-        .breakdown()?;
-
     let ctx = DnaCtx { gc: 0.6, len: 50.0 };
     let total = scorer(&ctx);
-    let rows: Vec<_> = eval.iter(&ctx).collect();
+    let rows: Vec<_> = ScoreSet32::new()
+        .push(2.0, gc)?
+        .push(1.0, len)?
+        .breakdown(&ctx)?
+        .into_iter()
+        .collect();
 
     let breakdown_sum: f32 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - breakdown_sum).abs() < 1e-5);

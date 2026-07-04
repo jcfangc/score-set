@@ -68,8 +68,11 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let e32 = ScoreSet32::new().push(2.0, m32)?.breakdown()?;
-    let rows: Vec<Breakdown32> = e32.iter(&0.5).collect();
+    let rows: Vec<Breakdown32> = ScoreSet32::new()
+        .push(2.0, m32)?
+        .breakdown(&0.5)?
+        .into_iter()
+        .collect();
     // Verify field types are f32 (compiles == correct)
     let _: f32 = rows[0].score;
     let _: f32 = rows[0].weight;
@@ -81,8 +84,11 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let e64 = ScoreSet64::new().push(3.0, m64)?.breakdown()?;
-    let rows: Vec<Breakdown64> = e64.iter(&0.6).collect();
+    let rows: Vec<Breakdown64> = ScoreSet64::new()
+        .push(3.0, m64)?
+        .breakdown(&0.6)?
+        .into_iter()
+        .collect();
     // Verify field types are f64
     let _: f64 = rows[0].score;
     let _: f64 = rows[0].weight;

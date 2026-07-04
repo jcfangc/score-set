@@ -274,7 +274,9 @@ impl<C> Map01Stage32<C> {
 
 /// A single metric's contribution to the total score.
 ///
-/// Returned by [`Evaluator32::iter`] for a given context `&C`.
+/// A single metric's contribution to the total score.
+///
+/// Returned by the lazy iterator from [`ScoreSet32::breakdown`].
 #[derive(Clone, Debug)]
 pub struct Breakdown32 {
     /// Metric name.
@@ -286,81 +288,6 @@ pub struct Breakdown32 {
     /// `score * weight`.
     pub contribution: Score32,
 }
-
-// ---------------------------------------------------------------------------
-// BreakdownIter32 — lazy per-metric breakdown iterator
-// ---------------------------------------------------------------------------
-
-/// Compile-time evaluator holding normalized weights and metrics.
-///
-/// Produced by [`ScoreSet32::breakdown`]. Call [`iter`](Evaluator32::iter) to
-/// get a lazy [`BreakdownIter32`].
-pub struct Evaluator32<C> {
-    members: Vec<NormalizedMember32<C>>,
-}
-
-impl<C> Evaluator32<C> {
-    /// Yield per-metric breakdown rows for the given context.
-    ///
-    /// Returns a zero-allocation iterator implementing [`ExactSizeIterator`].
-    /// Call `.collect()` to get a `Vec<Breakdown32>`.
-    #[inline]
-    pub fn iter<'a>(&'a self, ctx: &'a C) -> BreakdownIter32<'a, C> {
-        BreakdownIter32 {
-            inner: self.members.iter(),
-            ctx,
-        }
-    }
-
-    /// Number of metrics in this evaluator.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.members.len()
-    }
-
-    /// Returns true if the evaluator has no metrics.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.members.is_empty()
-    }
-}
-
-/// Lazy iterator over per-metric [`Breakdown32`] rows.
-///
-/// Produced by [`Evaluator32::iter`]. Zero-allocation — each row is
-/// computed on the fly. Implements [`ExactSizeIterator`].
-pub struct BreakdownIter32<'a, C> {
-    inner: core::slice::Iter<'a, NormalizedMember32<C>>,
-    ctx: &'a C,
-}
-
-impl<C> Iterator for BreakdownIter32<'_, C> {
-    type Item = Breakdown32;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        let m = self.inner.next()?;
-        let score = m
-            .metric
-            .eval(self.ctx)
-            .map(|w| w.into_inner())
-            .unwrap_or(0.0);
-        let weight = m.weight.into_inner();
-        Some(Breakdown32 {
-            name: m.metric.name,
-            score,
-            weight,
-            contribution: score * weight,
-        })
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
-    }
-}
-
-impl<C> ExactSizeIterator for BreakdownIter32<'_, C> {}
 
 // ---------------------------------------------------------------------------
 // ScoreSet32 — weighted score set builder & closure factory
@@ -427,18 +354,33 @@ impl<C> ScoreSet32<C> {
         })
     }
 
-    /// Consume the builder and return an [`Evaluator32`].
+    /// Consume the builder and return per-metric [`Breakdown32`] rows.
     ///
-    /// Normalizes all weights so they sum to 1. Call [`Evaluator32::iter`] to
-    /// get a lazy, zero-allocation [`BreakdownIter32`] — `.collect()` it to
-    /// get a `Vec<Breakdown32>`.
+    /// Normalizes all weights so they sum to 1, evaluates every metric
+    /// against `ctx`, and returns the result as `impl IntoIterator`. The
+    /// returned value owns all data — no lifetime coupling to `ctx` — so
+    /// it can be passed out of local scopes freely.
+    ///
+    /// Use directly in a `for` loop or call `.into_iter()`.
     ///
     /// # Errors
     ///
     /// Returns an error if the set is empty or if weight normalization fails.
-    pub fn breakdown(self) -> Result<Evaluator32<C>, &'static str> {
+    pub fn breakdown(self, ctx: &C) -> Result<impl IntoIterator<Item = Breakdown32>, &'static str> {
         let members = self.normalize()?;
-        Ok(Evaluator32 { members })
+        Ok(members
+            .into_iter()
+            .map(|m| {
+                let score = m.metric.eval(ctx).map(|w| w.into_inner()).unwrap_or(0.0);
+                let weight = m.weight.into_inner();
+                Breakdown32 {
+                    name: m.metric.name,
+                    score,
+                    weight,
+                    contribution: score * weight,
+                }
+            })
+            .collect::<Vec<_>>())
     }
 
     /// Normalize raw weights into a sorted, validated container.
