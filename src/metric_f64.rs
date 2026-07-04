@@ -6,7 +6,6 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 use witnessed::{WitnessExt, Witnessed};
 
 use crate::value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
@@ -172,7 +171,6 @@ impl MeasureStage64 {
         MeasuredStage64 {
             name: self.name,
             measure,
-            _phantom: PhantomData,
         }
     }
 }
@@ -181,7 +179,6 @@ impl MeasureStage64 {
 pub struct MeasuredStage64<C> {
     name: &'static str,
     measure: fn(&C) -> Score64,
-    _phantom: PhantomData<C>,
 }
 
 impl<C> MeasuredStage64<C> {
@@ -191,7 +188,6 @@ impl<C> MeasuredStage64<C> {
         Map01Stage64 {
             name: self.name,
             measure: self.measure,
-            _phantom: PhantomData,
         }
     }
 }
@@ -200,7 +196,6 @@ impl<C> MeasuredStage64<C> {
 pub struct Map01Stage64<C> {
     name: &'static str,
     measure: fn(&C) -> Score64,
-    _phantom: PhantomData<C>,
 }
 
 impl<C> Map01Stage64<C> {
