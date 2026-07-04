@@ -43,7 +43,8 @@
 // Three-state precision selection:
 //   default        → f32  only (ScoreSet32, Metric32, … at crate root)
 //   f64            → f64  only (ScoreSet64, Metric64, … at crate root)
-//   f64 + both     → f32 + f64 (metric_f32::*, metric_f64::* as public modules)
+//   f64 + both     → f32 + f64 (ScoreSet32 + ScoreSet64 at crate root)
+// All modules are private — users only depend on re-exported types.
 
 #[cfg(not(feature = "f64"))]
 mod metric_f32;

@@ -26,6 +26,10 @@ witnessed = "0.8.0"
 #   f64 + both    → metric_f32 + metric_f64, both type families available
 #
 # Run `cargo run -p xtask -- gen` after changing types in metric_f32.rs.
+[[test]]
+name = "both_precision"
+required-features = ["both"]
+
 [features]
 f64 = []
 both = ["f64"]
