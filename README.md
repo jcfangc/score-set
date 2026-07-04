@@ -3,119 +3,145 @@
 [![crates.io](https://img.shields.io/crates/v/score-set?label=crates.io)](https://crates.io/crates/score-set)
 [![Coverage](https://codecov.io/gh/jcfangc/score-set/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/score-set)
 
-A Rust library for building **weighted scoring operator sets** with three
-dispatch strategies — from compile-time fixed to fully dynamic.
+A `#![no_std]` + `alloc` Rust library for building **weighted scoring
+operators** — combine named metrics with weights, normalize, and produce a
+scoring function or breakdown.
 
-## Quick example (Layer 1 — fixed)
+Two public types are all you need:
+- **`ScoreSet<N>`** (builder): collect metrics → normalise weights → produce result
+- **`Metric<N>`** (single metric): `fn(&C) -> Score` measure + Map01 normalization
+
+Where `N` is `32` (f32) or `64` (f64).
+
+## Quick example
 
 ```rust
 use score_set::*;
 
-let gc = metric("gc")
-    .measure().by(|dna: &&str| gc_ratio(dna))
-    .map01().by(|raw: &f64, _: &&str| Value01::witness(*raw).unwrap());
-
-let len = metric("len")
-    .measure().by(|len: &usize| *len)
-    .map01().by(|raw: &usize, _: &usize| {
-        Value01::witness((*raw as f64 / 100.0).min(1.0)).unwrap()
-    });
-
-let ms = fixed_score_set! { 2.0 => gc, 3.0 => len }?;
-
-let dna = "ACGTACGT";
-let score = ms.score().by(|(gc, len)| {
-    gc.contribute(gc.metric().eval(&dna))
-        + len.contribute(len.metric().eval(&dna.len()))
-});
-```
-
-## Three-layer architecture
-
-| Layer | Type | Macro | Dispatch | Use when |
-|---|---|---|---|---|
-| 1 — fixed | `FixedScoreSet` | `fixed_score_set!` | Compile-time, zero vtable | Metric set known at compile time |
-| 2 — finite | `FiniteScoreSet` | `finite_score_set!` | Enum match, zero vtable | Runtime composition, known metric types |
-| 3 — dynamic | `DynamicScoreSet` | `dynamic_score_set!` | Vtable per call | Fully heterogeneous, runtime assembly |
-
-All three layers share the same `{ weight => metric, ... }` macro syntax.
-
-### Layer 2 — finite
-
-Declare a metric enum with named keys, then assemble:
-
-```rust
-finite_metric! {
-    metric     => RestaurantMetric,
-    float      => f64,
-    subject    => Restaurant,
-    dimensions =>
-        Clean(Cleanliness),
-        Quality(FoodQuality),
-        Price(PriceScore),
+struct Restaurant {
+    cleanliness: f32,
+    food_quality: f32,
 }
 
-let set = finite_score_set! {
-    3.0 => RestaurantMetric::Clean(Cleanliness::new()),
-    5.0 => RestaurantMetric::Quality(FoodQuality::new()),
-    2.0 => RestaurantMetric::Price(PriceScore::new()),
-}?;
+// Define metrics via a builder pipeline
+let clean = metric32("cleanliness")
+    .measure()
+    .by(|r: &Restaurant| r.cleanliness)
+    .map01()
+    .linear(100.0);
 
-let total = set.sum(&restaurant);
-let rows  = set.breakdown(&restaurant);  // per-metric detail
+let food = metric32("food")
+    .measure()
+    .by(|r: &Restaurant| r.food_quality)
+    .map01()
+    .identity();
+
+// Combine with weights → weighted-sum closure
+let score = ScoreSet32::new()
+    .push(2.0, clean)?
+    .push(1.0, food)?
+    .sum()?;
+
+let r = Restaurant { cleanliness: 80.0, food_quality: 4.0 };
+let total: f32 = score(&r);          // ~0.87
+
+// Or get per-metric breakdown rows
+let rows: Vec<Breakdown32> = ScoreSet32::new()
+    .push(2.0, clean)?
+    .push(1.0, food)?
+    .breakdown(&r)?
+    .into_iter()
+    .collect();
+
+for row in rows {
+    // row.name, row.score, row.weight, row.contribution
+}
+# Ok::<(), &'static str>(())
 ```
 
-Or skip the enum declaration entirely — bare metrics are auto-wrapped in an
-anonymous zero-vtable enum:
+## Precision
 
-```rust
-let set = finite_score_set! { 2.0 => gc, 3.0 => len }?;
-let total = set.sum(&input);
+| Feature flag | Available types | Score type |
+|---|---|---|
+| *(default)* | `ScoreSet32`, `Metric32`, `metric32()`, … | `f32` |
+| `f64` | `ScoreSet64`, `Metric64`, `metric64()`, … | `f64` |
+| `both` | all of the above | both |
+
+```toml
+[dependencies]
+score-set = "0.3"                         # f32 only
+score-set = { version = "0.3", features = ["f64"] }    # f64 only
+score-set = { version = "0.3", features = ["both"] }   # both
 ```
-
-### Layer 3 — dynamic
-
-Same syntax, metrics are auto-boxed:
-
-```rust
-let set = dynamic_score_set! { 2.0 => gc, 3.0 => len }?;
-let total = set.sum(&input);
-```
-
-## Scoring
-
-| Method | Layer 1 | Layer 2 | Layer 3 |
-|---|---|---|---|
-| `set.sum(&input)` | — | ✅ | ✅ |
-| `set.score().by(closure)` | ✅ | ✅ | ✅ |
-| `set.breakdown(&input)` | — | ✅ | ✅ |
-| `set.iter()` / `.len()` | — | ✅ | ✅ |
-| Builder `.push().build()` | — | ✅ | ✅ |
 
 ## Building a metric
 
+```
+metric32("name")           // MetricNamingStage32
+    .measure()             // MeasureStage32
+    .by(|ctx| raw)         // MeasuredStage32<C>  — fn pointer, no closures
+    .map01()               // Map01Stage32<C>
+    .<shape>(...)          // Metric32<C>
+```
+
+### Map01 shapes
+
+| Shape | Constructor | Formula |
+|---|---|---|
+| Identity | `.identity()` | `raw.clamp(0, 1)` |
+| Linear | `.linear(max)` | `raw / max`, clamped |
+| Increasing sigmoid | `.inc_sigmoid(low, high)` | `1/(1 + e⁻ᵏ⁽ˣ⁻ᵐⁱᵈ⁾)` |
+| Decreasing sigmoid | `.dec_sigmoid(low, high)` | `1/(1 + eᵏ⁽ˣ⁻ᵐⁱᵈ⁾)` |
+| Cauchy (Lorentzian) | `.cauchy(center, scale)` | `1/(1 + ((x-c)/s)²)` |
+| Custom | `.by(fn(Score) -> Score)` | user-provided |
+
+All variants (except Custom) guarantee output in `[0, 1]` by construction.
+Custom is validated at evaluation time via `Value01` witness.
+
+## API
+
+### `ScoreSet<N>` — builder
+
 ```rust
-let m = metric("name")            // name it
-    .measure().by(|input| raw)    // measure: I → Raw
-    .map01().by(|raw, input| v);  // normalise: Raw → [0, 1]
+ScoreSet32::new()                          // empty builder
+    .push(weight, metric)?                 // add a metric (weight must be > 0, finite)
+    .sum()?                                // → impl Fn(&C) -> Score
+    .breakdown(&ctx)?                      // → impl IntoIterator<Item = Breakdown32>
 ```
 
-## Features
+`sum()` returns a closure — call it with any number of contexts.  
+`breakdown()` evaluates all metrics against one context, returns owned rows.
 
-Default arity is 128 members per set. Opt into smaller feature sets:
+### `Metric<N>` — single metric
 
-```toml
-score-set = { default-features = false, features = ["level-8"] }
-score-set = { features = ["level-16"] }
+```rust
+pub struct Metric32<C> {
+    pub name: &'static str,
+    // measure: fn(&C) -> Score32  (private)
+    // map01: Map0132              (private)
+}
+
+impl Metric32<C> {
+    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score32, Value01>, &'static str>;
+}
 ```
 
-Available levels: `level-8`, `level-16`, `level-32`, `level-64`, `level-128`.
+### `Breakdown<N>`
 
-Per-layer control:
-
-```toml
-score-set = { features = ["fixed-level-8", "finite-level-8"] }
+```rust
+pub struct Breakdown32 {
+    pub name: &'static str,
+    pub score: Score32,        // normalized, in [0, 1]
+    pub weight: Score32,        // normalized weight (sum = 1)
+    pub contribution: Score32,  // score × weight
+}
 ```
+
+## `no_std`
+
+This crate is `#![no_std]` with `extern crate alloc`. It only needs `Vec`
+and `String` from the allocator, and `libm` for `exp`. Works on bare-metal
+targets.
 
 ## License
 

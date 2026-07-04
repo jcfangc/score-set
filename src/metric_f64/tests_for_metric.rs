@@ -174,3 +174,46 @@ fn metrics_with_different_ctx_fields() -> Result<(), &'static str> {
     assert!((total - 0.55).abs() < 1e-5);
     Ok(())
 }
+
+#[test]
+fn readme_quick_example_compiles() -> Result<(), &'static str> {
+    struct Restaurant {
+        cleanliness: f64,
+        food_quality: f64,
+    }
+
+    let clean = metric64("cleanliness")
+        .measure()
+        .by(|r: &Restaurant| r.cleanliness)
+        .map01()
+        .linear(100.0);
+
+    let food = metric64("food")
+        .measure()
+        .by(|r: &Restaurant| r.food_quality)
+        .map01()
+        .identity();
+
+    let score = ScoreSet64::new()
+        .push(2.0, clean.clone())?
+        .push(1.0, food.clone())?
+        .sum()?;
+
+    let r = Restaurant {
+        cleanliness: 80.0,
+        food_quality: 4.0,
+    };
+    let total: f64 = score(&r);
+    // clean: 0.8×2/3 ≈ 0.533, food: 1.0×1/3 ≈ 0.333, total ≈ 0.867
+    assert!((total - 0.866667).abs() < 1e-5);
+
+    let rows: Vec<Breakdown64> = ScoreSet64::new()
+        .push(2.0, clean)?
+        .push(1.0, food)?
+        .breakdown(&r)?
+        .into_iter()
+        .collect();
+
+    assert_eq!(rows.len(), 2);
+    Ok(())
+}
