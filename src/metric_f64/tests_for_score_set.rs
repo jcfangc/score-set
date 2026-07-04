@@ -85,14 +85,14 @@ fn breakdown_matches_sum() -> Result<(), &'static str> {
         .push(2.0, gc.clone())?
         .push(1.0, len.clone())?
         .sum()?;
-    let breakdowner = ScoreSet64::new()
+    let eval = ScoreSet64::new()
         .push(2.0, gc)?
         .push(1.0, len)?
         .breakdown()?;
 
     let ctx = DnaCtx { gc: 0.6, len: 50.0 };
     let total = scorer(&ctx);
-    let rows = breakdowner(&ctx);
+    let rows: Vec<_> = eval.iter(&ctx).collect();
 
     let breakdown_sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - breakdown_sum).abs() < 1e-5);

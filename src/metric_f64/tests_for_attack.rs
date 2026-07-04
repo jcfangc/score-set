@@ -164,10 +164,12 @@ fn breakdown_defaults_failed_metric_to_zero() -> Result<(), &'static str> {
         .map01()
         .by(|_| 1.5);
 
-    let rows = ScoreSet64::new()
+    let rows: Vec<_> = ScoreSet64::new()
         .push(1.0, good)?
         .push(1.0, bad)?
-        .breakdown()?(&0.0);
+        .breakdown()?
+        .iter(&0.0)
+        .collect();
 
     assert_eq!(rows.len(), 2);
     // Find the failed metric
@@ -207,7 +209,11 @@ fn single_element_breakdown_weight_is_one() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows = ScoreSet64::new().push(3.0, m)?.breakdown()?(&0.4);
+    let rows: Vec<_> = ScoreSet64::new()
+        .push(3.0, m)?
+        .breakdown()?
+        .iter(&0.4)
+        .collect();
 
     assert_eq!(rows.len(), 1);
     assert!((rows[0].weight - 1.0).abs() < 1e-7);
@@ -359,7 +365,7 @@ fn multiple_metrics_breakdown_consistent() -> Result<(), &'static str> {
         builder = builder.push(1.0, m)?;
     }
 
-    let rows = builder.breakdown()?(&0.3);
+    let rows: Vec<_> = builder.breakdown()?.iter(&0.3).collect();
     assert_eq!(rows.len(), 4);
     // Each weight = 0.25 (exact in binary)
     for r in &rows {

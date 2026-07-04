@@ -278,7 +278,7 @@ impl<C> Map01Stage64<C> {
 
 /// A single metric's contribution to the total score.
 ///
-/// Returned by the breakdown closure produced by [`ScoreSet64::breakdown`].
+/// Returned by [`Evaluator64::iter`] for a given context `&C`.
 #[derive(Clone, Debug)]
 pub struct Breakdown64 {
     /// Metric name.
@@ -290,6 +290,81 @@ pub struct Breakdown64 {
     /// `score * weight`.
     pub contribution: Score64,
 }
+
+// ---------------------------------------------------------------------------
+// BreakdownIter64 — lazy per-metric breakdown iterator
+// ---------------------------------------------------------------------------
+
+/// Compile-time evaluator holding normalized weights and metrics.
+///
+/// Produced by [`ScoreSet64::breakdown`]. Call [`iter`](Evaluator64::iter) to
+/// get a lazy [`BreakdownIter64`].
+pub struct Evaluator64<C> {
+    members: Vec<NormalizedMember64<C>>,
+}
+
+impl<C> Evaluator64<C> {
+    /// Yield per-metric breakdown rows for the given context.
+    ///
+    /// Returns a zero-allocation iterator implementing [`ExactSizeIterator`].
+    /// Call `.collect()` to get a `Vec<Breakdown64>`.
+    #[inline]
+    pub fn iter<'a>(&'a self, ctx: &'a C) -> BreakdownIter64<'a, C> {
+        BreakdownIter64 {
+            inner: self.members.iter(),
+            ctx,
+        }
+    }
+
+    /// Number of metrics in this evaluator.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.members.len()
+    }
+
+    /// Returns true if the evaluator has no metrics.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.members.is_empty()
+    }
+}
+
+/// Lazy iterator over per-metric [`Breakdown64`] rows.
+///
+/// Produced by [`Evaluator64::iter`]. Zero-allocation — each row is
+/// computed on the fly. Implements [`ExactSizeIterator`].
+pub struct BreakdownIter64<'a, C> {
+    inner: std::slice::Iter<'a, NormalizedMember64<C>>,
+    ctx: &'a C,
+}
+
+impl<C> Iterator for BreakdownIter64<'_, C> {
+    type Item = Breakdown64;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let m = self.inner.next()?;
+        let score = m
+            .metric
+            .eval(self.ctx)
+            .map(|w| w.into_inner())
+            .unwrap_or(0.0);
+        let weight = m.weight.into_inner();
+        Some(Breakdown64 {
+            name: m.metric.name.clone(),
+            score,
+            weight,
+            contribution: score * weight,
+        })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<C> ExactSizeIterator for BreakdownIter64<'_, C> {}
 
 // ---------------------------------------------------------------------------
 // ScoreSet64 — weighted score set builder & closure factory
@@ -356,32 +431,18 @@ impl<C> ScoreSet64<C> {
         })
     }
 
-    /// Consume the builder and return a breakdown closure.
+    /// Consume the builder and return an [`Evaluator64`].
     ///
-    /// Normalizes all weights so they sum to 1, then returns a closure
-    /// `impl Fn(&C) -> Vec<Breakdown64>` that evaluates every metric against
-    /// the context and returns per-metric detail rows.
+    /// Normalizes all weights so they sum to 1. Call [`Evaluator64::iter`] to
+    /// get a lazy, zero-allocation [`BreakdownIter64`] — `.collect()` it to
+    /// get a `Vec<Breakdown64>`.
     ///
     /// # Errors
     ///
     /// Returns an error if the set is empty or if weight normalization fails.
-    pub fn breakdown(self) -> Result<impl Fn(&C) -> Vec<Breakdown64>, &'static str> {
+    pub fn breakdown(self) -> Result<Evaluator64<C>, &'static str> {
         let members = self.normalize()?;
-        Ok(move |ctx: &C| {
-            members
-                .iter()
-                .map(|m| {
-                    let score = m.metric.eval(ctx).map(|w| w.into_inner()).unwrap_or(0.0);
-                    let weight = m.weight.into_inner();
-                    Breakdown64 {
-                        name: m.metric.name.clone(),
-                        score,
-                        weight,
-                        contribution: score * weight,
-                    }
-                })
-                .collect()
-        })
+        Ok(Evaluator64 { members })
     }
 
     /// Normalize raw weights into a sorted, validated container.
