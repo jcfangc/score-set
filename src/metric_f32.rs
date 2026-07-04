@@ -4,7 +4,6 @@
 //! builder pipeline, combine them into a [`ScoreSet32`], and produce a closure
 //! that evaluates any `&C` context to either a weighted sum or a breakdown.
 
-use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use witnessed::{WitnessExt, Witnessed};
 
@@ -111,7 +110,7 @@ impl Map0132 {
 /// [`Vec<Metric32<C>>`] works without trait objects.
 pub struct Metric32<C> {
     /// Human-readable name for this metric.
-    pub name: String,
+    pub name: &'static str,
     measure: fn(&C) -> Score32,
     map01: Map0132,
 }
@@ -130,7 +129,7 @@ impl<C> Metric32<C> {
 impl<C> Clone for Metric32<C> {
     fn clone(&self) -> Self {
         Self {
-            name: self.name.clone(),
+            name: self.name,
             measure: self.measure,
             map01: self.map01.clone(),
         }
@@ -203,7 +202,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn identity(self) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::Identity,
         }
@@ -213,7 +212,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn linear(self, max: Score32) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::Linear { max },
         }
@@ -225,7 +224,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn inc_sigmoid(self, low: Score32, high: Score32) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::IncSigmoid { low, high },
         }
@@ -237,7 +236,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn dec_sigmoid(self, low: Score32, high: Score32) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::DecSigmoid { low, high },
         }
@@ -249,7 +248,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn cauchy(self, center: Score32, scale: Score32) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::Cauchy { center, scale },
         }
@@ -262,7 +261,7 @@ impl<C> Map01Stage32<C> {
     #[inline]
     pub fn by(self, map01: fn(Score32) -> Score32) -> Metric32<C> {
         Metric32 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0132::Custom(map01),
         }
@@ -279,7 +278,7 @@ impl<C> Map01Stage32<C> {
 #[derive(Clone, Debug)]
 pub struct Breakdown32 {
     /// Metric name.
-    pub name: String,
+    pub name: &'static str,
     /// Normalized score in `[0, 1]`.
     pub score: Score32,
     /// Normalized weight (sums to 1 across all metrics).
@@ -348,7 +347,7 @@ impl<C> Iterator for BreakdownIter32<'_, C> {
             .unwrap_or(0.0);
         let weight = m.weight.into_inner();
         Some(Breakdown32 {
-            name: m.metric.name.clone(),
+            name: m.metric.name,
             score,
             weight,
             contribution: score * weight,

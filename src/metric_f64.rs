@@ -4,7 +4,6 @@
 //! builder pipeline, combine them into a [`ScoreSet64`], and produce a closure
 //! that evaluates any `&C` context to either a weighted sum or a breakdown.
 
-use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use witnessed::{WitnessExt, Witnessed};
 
@@ -111,7 +110,7 @@ impl Map0164 {
 /// [`Vec<Metric64<C>>`] works without trait objects.
 pub struct Metric64<C> {
     /// Human-readable name for this metric.
-    pub name: String,
+    pub name: &'static str,
     measure: fn(&C) -> Score64,
     map01: Map0164,
 }
@@ -130,7 +129,7 @@ impl<C> Metric64<C> {
 impl<C> Clone for Metric64<C> {
     fn clone(&self) -> Self {
         Self {
-            name: self.name.clone(),
+            name: self.name,
             measure: self.measure,
             map01: self.map01.clone(),
         }
@@ -203,7 +202,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn identity(self) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::Identity,
         }
@@ -213,7 +212,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn linear(self, max: Score64) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::Linear { max },
         }
@@ -225,7 +224,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn inc_sigmoid(self, low: Score64, high: Score64) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::IncSigmoid { low, high },
         }
@@ -237,7 +236,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn dec_sigmoid(self, low: Score64, high: Score64) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::DecSigmoid { low, high },
         }
@@ -249,7 +248,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn cauchy(self, center: Score64, scale: Score64) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::Cauchy { center, scale },
         }
@@ -262,7 +261,7 @@ impl<C> Map01Stage64<C> {
     #[inline]
     pub fn by(self, map01: fn(Score64) -> Score64) -> Metric64<C> {
         Metric64 {
-            name: self.name.to_string(),
+            name: self.name,
             measure: self.measure,
             map01: Map0164::Custom(map01),
         }
@@ -279,7 +278,7 @@ impl<C> Map01Stage64<C> {
 #[derive(Clone, Debug)]
 pub struct Breakdown64 {
     /// Metric name.
-    pub name: String,
+    pub name: &'static str,
     /// Normalized score in `[0, 1]`.
     pub score: Score64,
     /// Normalized weight (sums to 1 across all metrics).
@@ -348,7 +347,7 @@ impl<C> Iterator for BreakdownIter64<'_, C> {
             .unwrap_or(0.0);
         let weight = m.weight.into_inner();
         Some(Breakdown64 {
-            name: m.metric.name.clone(),
+            name: m.metric.name,
             score,
             weight,
             contribution: score * weight,
