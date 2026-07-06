@@ -19,8 +19,8 @@ fn main() {
 }
 
 /// Generate `src/metric_f64.rs` from `src/metric_f32.rs` by replacing
-/// `f32` → `f64` for the Score type alias, then `32` → `64` for all
-/// type/function name suffixes. Companion test files are generated the same way.
+/// `32` → `64` for all type/function name suffixes, `expf` → `exp`, and
+/// `logf` → `log`. Companion test files are generated the same way.
 fn generate_f64() {
     let out_dir = std::env::current_dir().unwrap();
 
@@ -29,9 +29,9 @@ fn generate_f64() {
     let src_f64 = out_dir.join("src").join("metric_f64.rs");
 
     let content = std::fs::read_to_string(&src_f32).expect("failed to read src/metric_f32.rs");
-    let content = content.replace("pub type Score32 = f32;", "pub type Score64 = f64;");
-    let content = content.replace("Score32 = f32", "Score64 = f64");
     let content = content.replace("libm::expf", "libm::exp");
+    let content = content.replace("libm::logf", "libm::log");
+    let content = content.replace("f32", "f64");
     let content = content.replace("32", "64");
 
     std::fs::write(&src_f64, &content).expect("failed to write src/metric_f64.rs");

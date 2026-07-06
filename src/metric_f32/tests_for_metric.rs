@@ -94,7 +94,7 @@ fn pipeline_cauchy() {
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
-        .cauchy(5.0, 1.0);
+        .cauchy(5.0, 1.0, 1.0);
 
     let peak = m.eval(&5.0).unwrap().into_inner();
     let wing = m.eval(&10.0).unwrap().into_inner();
@@ -102,6 +102,19 @@ fn pipeline_cauchy() {
     assert!((peak - 1.0).abs() < 1e-6); // max at center
     assert!(wing < peak); // decays away from center
     assert!(wing > 0.0);
+
+    // Asymmetric: different decay rates on each side
+    let m2 = metric32("asym")
+        .measure()
+        .by(|ctx: &f32| *ctx)
+        .map01()
+        .cauchy(5.0, 1.0, 3.0);
+
+    let left = m2.eval(&4.0).unwrap().into_inner();
+    let right = m2.eval(&6.0).unwrap().into_inner();
+    assert!(left < right); // tighter on left → lower at distance 1
+    assert!(left > 0.0);
+    assert!(right > 0.0);
 }
 
 #[test]

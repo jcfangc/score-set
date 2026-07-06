@@ -77,7 +77,7 @@ pub use metric_f32::*;
 pub use metric_f64::*;
 
 mod value;
-pub use value::{GtZero, NormalizedContainer, NormalizedWeight, ScoreOps, Value01};
+pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
 #[cfg(test)]
