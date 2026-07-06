@@ -27,18 +27,18 @@ fn linear_negative_max_rejected() {
 }
 
 // ============================================================================
-// A2: Cauchy scale=0 — produces NaN at center, caught by Value01
+// A2: Cauchy half_width=0 — produces NaN at center, caught by Value01
 // ============================================================================
 
 #[test]
-fn cauchy_zero_scale_rejected() {
+fn cauchy_zero_half_width_rejected() {
     let m = metric32("bad")
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
-        .cauchy(5.0, 0.0);
+        .cauchy(5.0, 1.0, 0.0);
 
-    // raw == center → 0/0 = NaN → Value01 rejects
+    // raw == center, raw >= center → half_right=0 → 0/0 = NaN → Value01 rejects
     assert!(m.eval(&5.0).is_err());
 }
 
@@ -100,7 +100,7 @@ fn nan_raw_cauchy_rejected() {
         .measure()
         .by(|_: &f32| f32::NAN)
         .map01()
-        .cauchy(5.0, 1.0);
+        .cauchy(5.0, 1.0, 1.0);
 
     assert!(m.eval(&0.0).is_err());
 }
@@ -276,7 +276,7 @@ fn cauchy_peak_is_one() {
         .measure()
         .by(|ctx: &f32| *ctx)
         .map01()
-        .cauchy(5.0, 1.0);
+        .cauchy(5.0, 1.0, 2.0);
 
     // At center → 1.0
     assert!((m.eval(&5.0).unwrap().into_inner() - 1.0).abs() < 1e-7);

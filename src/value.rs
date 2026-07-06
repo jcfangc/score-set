@@ -10,7 +10,7 @@ use witnessed::{WitnessExt, Witnessed};
 ///
 /// Implemented for `f32` and `f64`. Only needed as a bound on witness
 /// constructors — downstream code uses concrete types directly.
-pub trait ScoreOps:
+pub(crate) trait ScoreOps:
     Copy + PartialOrd + PartialEq + Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self>
 {
     fn is_finite(self) -> bool;
@@ -49,6 +49,7 @@ pub struct Value01;
 impl Value01 {
     /// Validate `v` and return a `Witnessed` credential.
     #[inline]
+    #[allow(private_bounds)]
     pub fn witness<T: ScoreOps>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("Value01: value must be finite");
@@ -72,6 +73,7 @@ pub struct GtZero;
 impl GtZero {
     /// Validate `v` and return a `Witnessed` credential.
     #[inline]
+    #[allow(private_bounds)]
     pub fn witness<T: ScoreOps>(v: T) -> Result<Witnessed<T, Self>, &'static str> {
         if !v.is_finite() {
             return Err("GtZero: value must be finite");
@@ -99,6 +101,7 @@ impl NormalizedWeight {
     ///
     /// Binary-searches the sorted `container`.
     #[inline]
+    #[allow(private_bounds)]
     pub fn from_normalized_container<T: ScoreOps>(
         value: T,
         container: &Witnessed<Vec<T>, NormalizedContainer>,
@@ -125,6 +128,7 @@ pub struct NormalizedContainer;
 impl NormalizedContainer {
     /// Validate every value is finite, in `[0, 1]`, and the set sums to 1.
     #[inline]
+    #[allow(private_bounds)]
     pub fn witness<T: ScoreOps>(weights: Vec<T>) -> Result<Witnessed<Vec<T>, Self>, &'static str> {
         let zero = T::from_f64(0.0);
         let one = T::from_f64(1.0);

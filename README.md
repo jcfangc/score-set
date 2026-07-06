@@ -9,7 +9,7 @@ scoring function or breakdown.
 
 Two public types are all you need:
 - **`ScoreSet<N>`** (builder): collect metrics → normalise weights → produce result
-- **`Metric<N>`** (single metric): `fn(&C) -> Score` measure + Map01 normalization
+- **`Metric<N>`** (single metric): `fn(&C) -> f32` (or `f64`) measure + Map01 normalization
 
 Where `N` is `32` (f32) or `64` (f64).
 
@@ -61,17 +61,17 @@ for row in rows {
 
 ## Precision
 
-| Feature flag | Available types | Score type |
-|---|---|---|
-| *(default)* | `ScoreSet32`, `Metric32`, `metric32()`, … | `f32` |
-| `f64` | `ScoreSet64`, `Metric64`, `metric64()`, … | `f64` |
-| `both` | all of the above | both |
+| Feature flag | Available types |
+|---|---|
+| *(default)* | `ScoreSet32`, `Metric32`, `metric32()`, … |
+| `f64` | `ScoreSet64`, `Metric64`, `metric64()`, … |
+| `both` | all of the above |
 
 ```toml
 [dependencies]
-score-set = "0.3"                         # f32 only
-score-set = { version = "0.3", features = ["f64"] }    # f64 only
-score-set = { version = "0.3", features = ["both"] }   # both
+score-set = "0.4"                         # f32 only
+score-set = { version = "0.4", features = ["f64"] }    # f64 only
+score-set = { version = "0.4", features = ["both"] }   # both
 ```
 
 ## Building a metric
@@ -90,10 +90,10 @@ metric32("name")           // MetricNamingStage32
 |---|---|---|
 | Identity | `.identity()` | `raw.clamp(0, 1)` |
 | Linear | `.linear(max)` | `raw / max`, clamped |
-| Increasing sigmoid | `.inc_sigmoid(low, high)` | `1/(1 + e⁻ᵏ⁽ˣ⁻ᵐⁱᵈ⁾)` |
-| Decreasing sigmoid | `.dec_sigmoid(low, high)` | `1/(1 + eᵏ⁽ˣ⁻ᵐⁱᵈ⁾)` |
-| Cauchy (Lorentzian) | `.cauchy(center, scale)` | `1/(1 + ((x-c)/s)²)` |
-| Custom | `.by(fn(Score) -> Score)` | user-provided |
+| Increasing sigmoid | `.inc_sigmoid(low, high)` | `1/(1 + e⁻ᵏ⁽ˣ⁻ˣ⁰⁾)`, k auto-calibrated |
+| Decreasing sigmoid | `.dec_sigmoid(low, high)` | `1/(1 + eᵏ⁽ˣ⁻ˣ⁰⁾)`, k auto-calibrated |
+| Asymmetric Cauchy | `.cauchy(center, half_left, half_right)` | `1/(1 + ((x−c)/h)²)`, h per-side |
+| Custom | `.by(fn(f32) -> f32)` | user-provided |
 
 All variants (except Custom) guarantee output in `[0, 1]` by construction.
 Custom is validated at evaluation time via `Value01` witness.
@@ -105,7 +105,7 @@ Custom is validated at evaluation time via `Value01` witness.
 ```rust
 ScoreSet32::new()                          // empty builder
     .push(weight, metric)?                 // add a metric (weight must be > 0, finite)
-    .sum()?                                // → impl Fn(&C) -> Score
+    .sum()?                                // → impl Fn(&C) -> f32
     .breakdown(&ctx)?                      // → impl IntoIterator<Item = Breakdown32>
 ```
 
@@ -117,12 +117,12 @@ ScoreSet32::new()                          // empty builder
 ```rust
 pub struct Metric32<C> {
     pub name: &'static str,
-    // measure: fn(&C) -> Score32  (private)
+    // measure: fn(&C) -> f32     (private)
     // map01: Map0132              (private)
 }
 
 impl Metric32<C> {
-    pub fn eval(&self, ctx: &C) -> Result<Witnessed<Score32, Value01>, &'static str>;
+    pub fn eval(&self, ctx: &C) -> Result<Witnessed<f32, Value01>, &'static str>;
 }
 ```
 
@@ -131,16 +131,16 @@ impl Metric32<C> {
 ```rust
 pub struct Breakdown32 {
     pub name: &'static str,
-    pub score: Score32,        // normalized, in [0, 1]
-    pub weight: Score32,        // normalized weight (sum = 1)
-    pub contribution: Score32,  // score × weight
+    pub score: f32,        // normalized, in [0, 1]
+    pub weight: f32,        // normalized weight (sum = 1)
+    pub contribution: f32,  // score × weight
 }
 ```
 
 ## `no_std`
 
 This crate is `#![no_std]` with `extern crate alloc`. It only needs `Vec`
-and `String` from the allocator, and `libm` for `exp`. Works on bare-metal
+and `String` from the allocator, and `libm` for `exp` and `log`. Works on bare-metal
 targets.
 
 ## License
