@@ -9,6 +9,13 @@ repos:
         always_run: true
         verbose: true
 
+      - id: cargo-check
+        name: cargo check (refresh Cargo.lock)
+        entry: cargo check
+        language: system
+        pass_filenames: false
+        files: \.(rs|toml)$
+
       - id: cargo-test
         name: cargo test --locked
         entry: cargo test --locked
