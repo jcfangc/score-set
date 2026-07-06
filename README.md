@@ -140,7 +140,7 @@ pub struct Breakdown32 {
 ## `no_std`
 
 This crate is `#![no_std]` with `extern crate alloc`. It only needs `Vec`
-and `String` from the allocator, and `libm` for `exp`. Works on bare-metal
+and `String` from the allocator, and `libm` for `exp` and `log`. Works on bare-metal
 targets.
 
 ## License
