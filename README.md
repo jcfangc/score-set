@@ -69,9 +69,9 @@ for row in rows {
 
 ```toml
 [dependencies]
-score-set = "0.3"                         # f32 only
-score-set = { version = "0.3", features = ["f64"] }    # f64 only
-score-set = { version = "0.3", features = ["both"] }   # both
+score-set = "0.4"                         # f32 only
+score-set = { version = "0.4", features = ["f64"] }    # f64 only
+score-set = { version = "0.4", features = ["both"] }   # both
 ```
 
 ## Building a metric
