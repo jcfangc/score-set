@@ -5,7 +5,7 @@
 //!
 //! Define metrics via a builder pipeline, combine them with weights, and
 //! produce a closure — either a weighted sum function or a breakdown iterator.
-//! The downstream caller only sees `impl Fn(&C) -> Score` or
+//! The downstream caller only sees `impl Fn(&C) -> f32` (or `f64`) or
 //! `impl Fn(&C) -> Vec<Breakdown>`.
 //!
 //! # Quick example
