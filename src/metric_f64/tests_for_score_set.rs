@@ -97,10 +97,14 @@ fn breakdown_matches_sum() -> Result<(), &'static str> {
     let breakdown_sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - breakdown_sum).abs() < 1e-5);
 
-    // Check names
+    // Check names, raw, score
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].name, "gc");
+    assert!((rows[0].raw - 0.6).abs() < 1e-7);
+    assert!((rows[0].score - 0.6).abs() < 1e-7);
     assert_eq!(rows[1].name, "len");
+    assert!((rows[1].raw - 50.0).abs() < 1e-5);
+    assert!((rows[1].score - 0.5).abs() < 1e-7);
     Ok(())
 }
 
