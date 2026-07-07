@@ -54,7 +54,7 @@ let rows: Vec<Breakdown32> = ScoreSet32::new()
     .collect();
 
 for row in rows {
-    // row.name, row.score, row.weight, row.contribution
+    // row.name, row.raw, row.score, row.weight, row.contribution
 }
 # Ok::<(), &'static str>(())
 ```
@@ -69,8 +69,8 @@ for row in rows {
 
 ```toml
 [dependencies]
-score-set = "0.4"                         # f32 only
-score-set = { version = "0.4", features = ["f64"] }    # f64 only
+score-set = "0.5"                         # f32 only
+score-set = { version = "0.5", features = ["f64"] }    # f64 only
 score-set = { version = "0.4", features = ["both"] }   # both
 ```
 
@@ -131,7 +131,8 @@ impl Metric32<C> {
 ```rust
 pub struct Breakdown32 {
     pub name: &'static str,
-    pub score: f32,        // normalized, in [0, 1]
+    pub raw: f32,           // original measured value
+    pub score: f32,         // normalized, in [0, 1]
     pub weight: f32,        // normalized weight (sum = 1)
     pub contribution: f32,  // score × weight
 }
