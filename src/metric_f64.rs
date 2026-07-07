@@ -306,6 +306,8 @@ impl<C> Map01Stage64<C> {
 pub struct Breakdown64 {
     /// Metric name.
     pub name: &'static str,
+    /// Raw measured value, before [`Map0164`] normalization.
+    pub raw: f64,
     /// Normalized score in `[0, 1]`.
     pub score: f64,
     /// Normalized weight (sums to 1 across all metrics).
@@ -396,10 +398,17 @@ impl<C> ScoreSet64<C> {
         Ok(members
             .into_iter()
             .map(|m| {
-                let score = m.metric.eval(ctx).map(|w| w.into_inner()).unwrap_or(0.0);
+                let raw = (m.metric.measure)(ctx);
+                let score = m
+                    .metric
+                    .map01
+                    .apply(raw)
+                    .map(|w| w.into_inner())
+                    .unwrap_or(0.0);
                 let weight = m.weight.into_inner();
                 Breakdown64 {
                     name: m.metric.name,
+                    raw,
                     score,
                     weight,
                     contribution: score * weight,

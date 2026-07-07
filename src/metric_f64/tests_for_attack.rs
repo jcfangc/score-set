@@ -174,6 +174,7 @@ fn breakdown_defaults_failed_metric_to_zero() -> Result<(), &'static str> {
     assert_eq!(rows.len(), 2);
     // Find the failed metric
     let bad_row = rows.iter().find(|r| r.name == "bad").unwrap();
+    assert!((bad_row.raw - 0.5).abs() < 1e-7);
     assert!((bad_row.score - 0.0).abs() < 1e-7);
     assert!((bad_row.contribution - 0.0).abs() < 1e-7);
     // Good metric should have normalized weight 0.5
@@ -217,6 +218,7 @@ fn single_element_breakdown_weight_is_one() -> Result<(), &'static str> {
 
     assert_eq!(rows.len(), 1);
     assert!((rows[0].weight - 1.0).abs() < 1e-7);
+    assert!((rows[0].raw - 0.4).abs() < 1e-7);
     assert!((rows[0].score - 0.4).abs() < 1e-7);
     assert!((rows[0].contribution - 0.4).abs() < 1e-7);
     Ok(())
@@ -367,9 +369,11 @@ fn multiple_metrics_breakdown_consistent() -> Result<(), &'static str> {
 
     let rows: Vec<_> = builder.breakdown(&0.3)?.into_iter().collect();
     assert_eq!(rows.len(), 4);
-    // Each weight = 0.25 (exact in binary)
+    // Each weight = 0.25, raw = score = 0.3 (identity map01)
     for r in &rows {
         assert!((r.weight - 0.25).abs() < 1e-7);
+        assert!((r.raw - 0.3).abs() < 1e-7);
+        assert!((r.score - 0.3).abs() < 1e-7);
     }
     let total: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - 0.3).abs() < 1e-6);

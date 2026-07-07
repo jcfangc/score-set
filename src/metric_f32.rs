@@ -306,6 +306,8 @@ impl<C> Map01Stage32<C> {
 pub struct Breakdown32 {
     /// Metric name.
     pub name: &'static str,
+    /// Raw measured value, before [`Map0132`] normalization.
+    pub raw: f32,
     /// Normalized score in `[0, 1]`.
     pub score: f32,
     /// Normalized weight (sums to 1 across all metrics).
@@ -396,10 +398,17 @@ impl<C> ScoreSet32<C> {
         Ok(members
             .into_iter()
             .map(|m| {
-                let score = m.metric.eval(ctx).map(|w| w.into_inner()).unwrap_or(0.0);
+                let raw = (m.metric.measure)(ctx);
+                let score = m
+                    .metric
+                    .map01
+                    .apply(raw)
+                    .map(|w| w.into_inner())
+                    .unwrap_or(0.0);
                 let weight = m.weight.into_inner();
                 Breakdown32 {
                     name: m.metric.name,
+                    raw,
                     score,
                     weight,
                     contribution: score * weight,
