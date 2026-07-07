@@ -74,6 +74,7 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .into_iter()
         .collect();
     // Verify field types are f32 (compiles == correct)
+    let _: f32 = rows[0].raw;
     let _: f32 = rows[0].score;
     let _: f32 = rows[0].weight;
     let _: f32 = rows[0].contribution;
@@ -90,6 +91,7 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .into_iter()
         .collect();
     // Verify field types are f64
+    let _: f64 = rows[0].raw;
     let _: f64 = rows[0].score;
     let _: f64 = rows[0].weight;
     let _: f64 = rows[0].contribution;
