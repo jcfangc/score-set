@@ -1,6 +1,6 @@
 //! Tests for precision coexistence.
 //!
-//! These tests verify that in `both` mode, `ScoreSet32`/`ScoreSet64` and their
+//! These tests verify that in `both` mode, `Score32`/`Score64` and their
 //! associated types coexist without name conflicts, produce values of the
 //! correct types, and remain type-safe (no accidental mixing).
 //!
@@ -18,20 +18,6 @@ struct Ctx {
 }
 
 // ---------------------------------------------------------------------------
-// Type identity
-// ---------------------------------------------------------------------------
-
-#[test]
-fn score32_is_f32() {
-    assert_eq!(core::mem::size_of::<Score32>(), 4);
-}
-
-#[test]
-fn score64_is_f64() {
-    assert_eq!(core::mem::size_of::<Score64>(), 8);
-}
-
-// ---------------------------------------------------------------------------
 // Coexistence — both families usable in the same scope
 // ---------------------------------------------------------------------------
 
@@ -44,7 +30,7 @@ fn both_families_evaluate() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let s32: f32 = ScoreSet32::new().push(1.0, m32)?.sum()?(&Ctx { a: 0.5, b: 0.0 });
+    let s32: f32 = score_set32! { 1.0 => m32 }?.score(&Ctx { a: 0.5, b: 0.0 });
 
     // f64 family
     let m64 = metric64("b")
@@ -53,7 +39,7 @@ fn both_families_evaluate() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let s64: f64 = ScoreSet64::new().push(1.0, m64)?.sum()?(&Ctx { a: 0.0, b: 0.75 });
+    let s64: f64 = score_set64! { 1.0 => m64 }?.score(&Ctx { a: 0.0, b: 0.75 });
 
     assert!((s32 - 0.5).abs() < 1e-6);
     assert!((s64 - 0.75).abs() < 1e-9);
@@ -68,12 +54,7 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows: Vec<Breakdown32> = ScoreSet32::new()
-        .push(2.0, m32)?
-        .breakdown(&0.5)?
-        .into_iter()
-        .collect();
-    // Verify field types are f32 (compiles == correct)
+    let rows = score_set32! { 2.0 => m32 }?.breakdown(&0.5);
     let _: f32 = rows[0].raw;
     let _: f32 = rows[0].score;
     let _: f32 = rows[0].weight;
@@ -85,12 +66,7 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows: Vec<Breakdown64> = ScoreSet64::new()
-        .push(3.0, m64)?
-        .breakdown(&0.6)?
-        .into_iter()
-        .collect();
-    // Verify field types are f64
+    let rows = score_set64! { 3.0 => m64 }?.breakdown(&0.6);
     let _: f64 = rows[0].raw;
     let _: f64 = rows[0].score;
     let _: f64 = rows[0].weight;
@@ -113,8 +89,7 @@ fn both_families_multiple_metrics() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let total: f32 =
-        ScoreSet32::new().push(1.0, m1)?.push(2.0, m2)?.sum()?(&Ctx { a: 0.3, b: 0.0 });
+    let total: f32 = score_set32! { 1.0 => m1, 2.0 => m2 }?.score(&Ctx { a: 0.3, b: 0.0 });
 
     let m3 = metric64("b")
         .measure()
@@ -122,7 +97,7 @@ fn both_families_multiple_metrics() -> Result<(), &'static str> {
         .map01()
         .inc_sigmoid(0.0, 1.0);
 
-    let total64: f64 = ScoreSet64::new().push(5.0, m3)?.sum()?(&Ctx { a: 0.0, b: 0.7 });
+    let total64: f64 = score_set64! { 5.0 => m3 }?.score(&Ctx { a: 0.0, b: 0.7 });
 
     assert!(total > 0.0);
     assert!(total64 > 0.0);

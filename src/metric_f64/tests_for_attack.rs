@@ -1,4 +1,5 @@
 use super::*;
+use crate::score_set64;
 
 // ============================================================================
 // A1: Map01 parameter validation — Linear max must be positive
@@ -38,7 +39,6 @@ fn cauchy_zero_half_width_rejected() {
         .map01()
         .cauchy(5.0, 1.0, 0.0);
 
-    // raw == center, raw >= center → half_right=0 → 0/0 = NaN → Value01 rejects
     assert!(m.eval(&5.0).is_err());
 }
 
@@ -54,7 +54,7 @@ fn infinite_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(ScoreSet64::new().push(f64::INFINITY, m).is_err());
+    assert!(score_set64! { f64::INFINITY => m }.is_err());
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn neg_infinite_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(ScoreSet64::new().push(f64::NEG_INFINITY, m).is_err());
+    assert!(score_set64! { f64::NEG_INFINITY => m }.is_err());
 }
 
 // ============================================================================
@@ -117,29 +117,27 @@ fn nan_raw_custom_rejected() {
 }
 
 // ============================================================================
-// A5: sum() silently skips failed metrics
+// A5: score() silently skips failed metrics
 // ============================================================================
 
 #[test]
 fn sum_skips_failed_metric() -> Result<(), &'static str> {
-    // Good metric: always returns 1.0
     let good = metric64("good")
         .measure()
         .by(|_: &f64| 1.0)
         .map01()
         .identity();
 
-    // Bad metric: custom map01 returns >1, always fails eval
     let bad = metric64("bad")
         .measure()
         .by(|_: &f64| 0.5)
         .map01()
         .by(|_| 1.5);
 
-    // Equal weights, only good contributes:
     // good: score=1.0, norm-weight=0.5, contribution=0.5
     // bad:  skipped, contribution=0.0 — total=0.5
-    let total = ScoreSet64::new().push(1.0, good)?.push(1.0, bad)?.sum()?(&0.0);
+    let scorer = score_set64! { 1.0 => good, 1.0 => bad }?;
+    let total = scorer.score(&0.0);
 
     assert!((total - 0.5).abs() < 1e-6);
     Ok(())
@@ -157,34 +155,26 @@ fn breakdown_defaults_failed_metric_to_zero() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    // Bad metric that always fails
     let bad = metric64("bad")
         .measure()
         .by(|_: &f64| 0.5)
         .map01()
         .by(|_| 1.5);
 
-    let rows: Vec<_> = ScoreSet64::new()
-        .push(1.0, good)?
-        .push(1.0, bad)?
-        .breakdown(&0.0)?
-        .into_iter()
-        .collect();
+    let rows = score_set64! { 1.0 => good, 1.0 => bad }?.breakdown(&0.0);
 
     assert_eq!(rows.len(), 2);
-    // Find the failed metric
     let bad_row = rows.iter().find(|r| r.name == "bad").unwrap();
     assert!((bad_row.raw - 0.5).abs() < 1e-7);
     assert!((bad_row.score - 0.0).abs() < 1e-7);
     assert!((bad_row.contribution - 0.0).abs() < 1e-7);
-    // Good metric should have normalized weight 0.5
     let good_row = rows.iter().find(|r| r.name == "good").unwrap();
     assert!((good_row.score - 0.8).abs() < 1e-6);
     Ok(())
 }
 
 // ============================================================================
-// A7: Single-element ScoreSet
+// A7: Single-element
 // ============================================================================
 
 #[test]
@@ -195,7 +185,8 @@ fn single_element_normalization() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let total = ScoreSet64::new().push(5.0, m)?.sum()?(&0.7);
+    let scorer = score_set64! { 5.0 => m }?;
+    let total = scorer.score(&0.7);
 
     // Single weight 5.0 → normalized to 1.0, score = 0.7, total = 0.7
     assert!((total - 0.7).abs() < 1e-6);
@@ -210,11 +201,7 @@ fn single_element_breakdown_weight_is_one() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows: Vec<_> = ScoreSet64::new()
-        .push(3.0, m)?
-        .breakdown(&0.4)?
-        .into_iter()
-        .collect();
+    let rows = score_set64! { 3.0 => m }?.breakdown(&0.4);
 
     assert_eq!(rows.len(), 1);
     assert!((rows[0].weight - 1.0).abs() < 1e-7);
@@ -225,7 +212,7 @@ fn single_element_breakdown_weight_is_one() -> Result<(), &'static str> {
 }
 
 // ============================================================================
-// A8: Boundary values — raw exactly 0.0 and 1.0
+// A8: Boundary values
 // ============================================================================
 
 #[test]
@@ -248,13 +235,9 @@ fn linear_exact_boundaries() {
         .map01()
         .linear(50.0);
 
-    // raw=0 → 0/50 = 0.0
     assert!((m.eval(&0.0).unwrap().into_inner() - 0.0).abs() < 1e-7);
-    // raw=50 → 50/50 = 1.0
     assert!((m.eval(&50.0).unwrap().into_inner() - 1.0).abs() < 1e-7);
-    // raw=100 → 100/50 = 2.0, clamped to 1.0
     assert!((m.eval(&100.0).unwrap().into_inner() - 1.0).abs() < 1e-7);
-    // raw=-10 → -10/50 = -0.2, clamped to 0.0
     assert!((m.eval(&-10.0).unwrap().into_inner() - 0.0).abs() < 1e-7);
 }
 
@@ -266,9 +249,7 @@ fn sigmoid_extremes_approach_zero_and_one() {
         .map01()
         .inc_sigmoid(0.0, 10.0);
 
-    // Far below low → ≈0
     assert!(m.eval(&-100.0).unwrap().into_inner() < 1e-4);
-    // Far above high → ≈1
     assert!(m.eval(&1000.0).unwrap().into_inner() > 0.9999);
 }
 
@@ -280,7 +261,6 @@ fn cauchy_peak_is_one() {
         .map01()
         .cauchy(5.0, 1.0, 2.0);
 
-    // At center → 1.0
     assert!((m.eval(&5.0).unwrap().into_inner() - 1.0).abs() < 1e-7);
 }
 
@@ -292,9 +272,7 @@ fn dec_sigmoid_reversed_extremes() {
         .map01()
         .dec_sigmoid(0.0, 10.0);
 
-    // Far below low → ≈1 (decreasing)
     assert!(m.eval(&-100.0).unwrap().into_inner() > 0.9999);
-    // Far above high → ≈0
     assert!(m.eval(&1000.0).unwrap().into_inner() < 1e-4);
 }
 
@@ -316,60 +294,60 @@ fn extreme_weights_normalize() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    // f64::MIN_POSITIVE and f64::MAX are both finite and > 0
-    let total = ScoreSet64::new()
-        .push(f64::MIN_POSITIVE, m1)?
-        .push(f64::MAX, m2)?
-        .sum()?(&0.0);
+    let scorer = score_set64! { f64::MIN_POSITIVE => m1, f64::MAX => m2 }?;
+    let total = scorer.score(&0.0);
 
-    // m1 contributes ~0 (tiny normalized weight), m2 contributes 0 (score=0)
-    // total ≈ 1.0 * tiny_weight ≈ 1.0 (since MIN_POSITIVE / (MIN_POSITIVE + MAX) ≈ 0)
-    // Actually: min_pos / (min_pos + max) ≈ 0 for f64. So weight1 ≈ 0, weight2 ≈ 1.
-    // contribution = 1.0*tiny_prob + 0.0*large_prob ≈ tiny_prob.
     assert!(total.is_finite());
-    // With f64::MAX, the sum is dominated by MAX so tiny weight is ~0
     assert!(total < 1e-6);
     Ok(())
 }
 
 // ============================================================================
-// A10: Multiple metrics (stress test normalization tolerance)
+// A10: Multiple metrics (stress test normalization)
 // ============================================================================
 
 #[test]
 fn multiple_metrics_normalize() -> Result<(), &'static str> {
-    let mut builder = ScoreSet64::new();
-    for _ in 0..8 {
-        let m = metric64("n")
-            .measure()
-            .by(|ctx: &f64| *ctx)
-            .map01()
-            .identity();
-        builder = builder.push(1.0, m)?;
-    }
+    let m = metric64("n")
+        .measure()
+        .by(|ctx: &f64| *ctx)
+        .map01()
+        .identity();
 
-    let total = builder.sum()?(&0.5);
+    let scorer = score_set64! {
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+    }?;
+
+    let total = scorer.score(&0.5);
     assert!(total.is_finite());
-    // All 8 metrics: weight=0.125 (exact in binary), score=0.5, total=0.5
     assert!((total - 0.5).abs() < 1e-6);
     Ok(())
 }
 
 #[test]
 fn multiple_metrics_breakdown_consistent() -> Result<(), &'static str> {
-    let mut builder = ScoreSet64::new();
-    for _ in 0..4 {
-        let m = metric64("n")
-            .measure()
-            .by(|ctx: &f64| *ctx)
-            .map01()
-            .identity();
-        builder = builder.push(1.0, m)?;
-    }
+    let m = metric64("n")
+        .measure()
+        .by(|ctx: &f64| *ctx)
+        .map01()
+        .identity();
 
-    let rows: Vec<_> = builder.breakdown(&0.3)?.into_iter().collect();
+    let rows = score_set64! {
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+        1.0 => m.clone(),
+    }?
+    .breakdown(&0.3);
+
     assert_eq!(rows.len(), 4);
-    // Each weight = 0.25, raw = score = 0.3 (identity map01)
     for r in &rows {
         assert!((r.weight - 0.25).abs() < 1e-7);
         assert!((r.raw - 0.3).abs() < 1e-7);
@@ -377,5 +355,107 @@ fn multiple_metrics_breakdown_consistent() -> Result<(), &'static str> {
     }
     let total: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - 0.3).abs() < 1e-6);
+    Ok(())
+}
+
+// ============================================================================
+// A11: Heterogeneous capturing closures — the core attack on static dispatch
+// ============================================================================
+
+#[test]
+fn heterogeneous_capturing_closures_deterministic() -> Result<(), &'static str> {
+    // Three metrics with three distinct F types sharing the same scorer:
+    // A) captures Vec<f64> (owned, non-Copy) — proves Fn bound is satisfied
+    // B) captures f64 threshold (Copy) — different F type from A
+    // C) non-capturing — a third distinct F type
+
+    let owned_data = alloc::vec![1.0_f64, 2.0, 3.0];
+
+    let with_vec = {
+        let data = owned_data; // move Vec into closure
+        metric64("with-vec")
+            .measure()
+            .by(move |ctx: &f64| {
+                let _ = &data; // borrow captured Vec through &self → proves Fn
+                *ctx
+            })
+            .map01()
+            .identity()
+    };
+
+    let with_threshold = {
+        let t: f64 = 0.5;
+        metric64("threshold")
+            .measure()
+            .by(move |ctx: &f64| if *ctx > t { 1.0 } else { 0.0 })
+            .map01()
+            .identity()
+    };
+
+    let non_capturing = metric64("plain")
+        .measure()
+        .by(|ctx: &f64| 1.0 - ctx)
+        .map01()
+        .identity();
+
+    let scorer = score_set64! {
+        1.0 => with_vec,
+        2.0 => with_threshold,
+        1.0 => non_capturing,
+    }?;
+
+    // Deterministic: same ctx → same result every time
+    let r1 = scorer.score(&0.8);
+    let r2 = scorer.score(&0.8);
+    assert!((r1 - r2).abs() < 1e-9);
+
+    // Different ctx → different result
+    let lo = scorer.score(&0.0);
+    let hi = scorer.score(&1.0);
+    assert!(hi > lo);
+
+    // Breakdown matches score
+    let rows = scorer.breakdown(&0.8);
+    let breakdown_sum: f64 = rows.iter().map(|r| r.contribution).sum();
+    assert!((r1 - breakdown_sum).abs() < 1e-6);
+
+    assert_eq!(rows.len(), 3);
+    // Normalized weights: 1+2+1 = 4 → [0.25, 0.5, 0.25]
+    assert!((rows[0].weight - 0.25).abs() < 1e-7);
+    assert!((rows[1].weight - 0.5).abs() < 1e-7);
+    assert!((rows[2].weight - 0.25).abs() < 1e-7);
+
+    Ok(())
+}
+
+#[test]
+fn capturing_closure_repeated_eval_proves_fn_bound() -> Result<(), &'static str> {
+    // Captures an owned Vec<f64> — non-Copy.
+    // Repeated eval via shared ref proves `F: Fn` (not just FnOnce).
+    let captured = alloc::vec![10.0_f64, 20.0];
+    let m = metric64("captured")
+        .measure()
+        .by(move |ctx: &f64| {
+            let _ = &captured; // borrow through &self → requires Fn
+            *ctx * 2.0
+        })
+        .map01()
+        .linear(2.0);
+
+    // 3× eval via shared reference
+    let s1 = m.eval(&0.5)?.into_inner();
+    let s2 = m.eval(&0.5)?.into_inner();
+    let s3 = m.eval(&0.5)?.into_inner();
+    assert!((s1 - 0.5).abs() < 1e-6);
+    assert!((s2 - 0.5).abs() < 1e-6);
+    assert!((s3 - 0.5).abs() < 1e-6);
+
+    // Also through score() — trait-dispatched
+    let scorer = score_set64! { 3.0 => m }?;
+    let r1 = scorer.score(&0.5);
+    let r2 = scorer.score(&0.5);
+    assert!((r1 - 0.5).abs() < 1e-6);
+    assert!((r2 - 0.5).abs() < 1e-6);
+
     Ok(())
 }
