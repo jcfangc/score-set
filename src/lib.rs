@@ -80,5 +80,13 @@ mod value;
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
+// Generated score_set32! macro (f32).  Active by default and in `both` mode.
+#[cfg(any(not(feature = "f64"), all(feature = "f64", feature = "both")))]
+mod gen_score_set32;
+
+// Generated score_set64! macro (f64).  Active when `f64` or `both` is enabled.
+#[cfg(feature = "f64")]
+mod gen_score_set64;
+
 #[cfg(test)]
 mod test_support;
