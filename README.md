@@ -4,14 +4,14 @@
 [![Coverage](https://codecov.io/gh/jcfangc/score-set/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/score-set)
 
 A `#![no_std]` + `alloc` Rust library for building **weighted scoring
-operators** — combine named metrics with weights, normalize, and produce a
-scoring function or breakdown.
+operators** — define metrics via a builder pipeline, combine them with weights
+into a zero-vtable flat scorer, and evaluate against any context.
 
-Two public types are all you need:
-- **`ScoreSet<N>`** (builder): collect metrics → normalise weights → produce result
-- **`Metric<N>`** (single metric): `fn(&C) -> f32` (or `f64`) measure + Map01 normalization
+Three concepts:
 
-Where `N` is `32` (f32) or `64` (f64).
+- **`Metric32<C, F>`** — a single named metric: measure closure + Map01 normalization
+- **`score_set32!`** — macro that packs heterogeneous metrics into a flat tuple scorer
+- **`Scored32<C, T>`** — the concrete scorer with `.score(&C)` and `.breakdown(&C)`
 
 ## Quick example
 
@@ -23,7 +23,7 @@ struct Restaurant {
     food_quality: f32,
 }
 
-// Define metrics via a builder pipeline
+// Define metrics — by() accepts closures (including capturing ones)
 let clean = metric32("cleanliness")
     .measure()
     .by(|r: &Restaurant| r.cleanliness)
@@ -36,53 +36,62 @@ let food = metric32("food")
     .map01()
     .identity();
 
-// Combine with weights → weighted-sum closure
-let score = ScoreSet32::new()
-    .push(2.0, clean)?
-    .push(1.0, food)?
-    .sum()?;
+// Combine into a flat scorer (zero vtable, static dispatch)
+let scorer = score_set32! { 2.0 => clean, 1.0 => food }?;
 
 let r = Restaurant { cleanliness: 80.0, food_quality: 4.0 };
-let total: f32 = score(&r);          // ~0.87
+let total: f32 = scorer.score(&r);          // ~0.87
 
-// Or get per-metric breakdown rows
-let rows: Vec<Breakdown32> = ScoreSet32::new()
-    .push(2.0, clean)?
-    .push(1.0, food)?
-    .breakdown(&r)?
-    .into_iter()
-    .collect();
-
+// Per-metric breakdown
+let rows = scorer.breakdown(&r);
 for row in rows {
     // row.name, row.raw, row.score, row.weight, row.contribution
 }
 # Ok::<(), &'static str>(())
 ```
 
+### Partial application (capturing closures)
+
+```rust
+let threshold: f32 = 0.6;
+let quality = metric32("quality")
+    .measure()
+    .by(move |ctx: &MyCtx| if ctx.value > threshold { ctx.value } else { 0.0 })
+    .map01()
+    .identity();
+
+// threshold is baked into the closure — scorer only needs &MyCtx
+let scorer = score_set32! { 1.0 => quality }?;
+let result = scorer.score(&ctx);
+```
+
 ## Precision
 
 | Feature flag | Available types |
 |---|---|
-| *(default)* | `ScoreSet32`, `Metric32`, `metric32()`, … |
-| `f64` | `ScoreSet64`, `Metric64`, `metric64()`, … |
+| *(default)* | `Metric32`, `Scored32`, `Breakdown32`, `metric32()`, `score_set32!`, … |
+| `f64` | `Metric64`, `Scored64`, `Breakdown64`, `metric64()`, `score_set64!`, … |
 | `both` | all of the above |
 
 ```toml
 [dependencies]
-score-set = "0.5"                         # f32 only
-score-set = { version = "0.5", features = ["f64"] }    # f64 only
-score-set = { version = "0.4", features = ["both"] }   # both
+score-set = "0.6"                                   # f32 only
+score-set = { version = "0.6", features = ["f64"] }  # f64 only
+score-set = { version = "0.6", features = ["both"] } # both
 ```
 
 ## Building a metric
 
 ```
-metric32("name")           // MetricNamingStage32
-    .measure()             // MeasureStage32
-    .by(|ctx| raw)         // MeasuredStage32<C>  — fn pointer, no closures
-    .map01()               // Map01Stage32<C>
-    .<shape>(...)          // Metric32<C>
+metric32("name")             // MetricNamingStage32
+    .measure()               // MeasureStage32
+    .by(|ctx| raw)           // MeasuredStage32<C, F>  — impl Fn(&C) -> f32
+    .map01()                 // Map01Stage32<C, F>
+    .<shape>(...)            // Metric32<C, F>
 ```
+
+`by()` accepts any `impl Fn(&C) -> f32` — function pointers, non-capturing
+closures, and capturing closures all work.
 
 ### Map01 shapes
 
@@ -93,40 +102,56 @@ metric32("name")           // MetricNamingStage32
 | Increasing sigmoid | `.inc_sigmoid(low, high)` | `1/(1 + e⁻ᵏ⁽ˣ⁻ˣ⁰⁾)`, k auto-calibrated |
 | Decreasing sigmoid | `.dec_sigmoid(low, high)` | `1/(1 + eᵏ⁽ˣ⁻ˣ⁰⁾)`, k auto-calibrated |
 | Asymmetric Cauchy | `.cauchy(center, half_left, half_right)` | `1/(1 + ((x−c)/h)²)`, h per-side |
-| Custom | `.by(fn(f32) -> f32)` | user-provided |
+| Custom | `.by(fn(f32) -> f32)` | user-provided fn pointer |
 
 All variants (except Custom) guarantee output in `[0, 1]` by construction.
-Custom is validated at evaluation time via `Value01` witness.
 
 ## API
 
-### `ScoreSet<N>` — builder
+### `score_set32!` — heterogeneous scorer
 
 ```rust
-ScoreSet32::new()                          // empty builder
-    .push(weight, metric)?                 // add a metric (weight must be > 0, finite)
-    .sum()?                                // → impl Fn(&C) -> f32
-    .breakdown(&ctx)?                      // → impl IntoIterator<Item = Breakdown32>
+score_set32! { 2.0 => gc_metric, 1.0 => len_metric }?
+//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//          weight => metric pairs, comma-separated, up to 64 metrics
+
+// Returns Result<Scored32<C, T>, &'static str>
 ```
 
-`sum()` returns a closure — call it with any number of contexts.  
-`breakdown()` evaluates all metrics against one context, returns owned rows.
+Weights must be finite and strictly positive (> 0). The macro normalizes them
+to sum to 1 at construction time.
 
-### `Metric<N>` — single metric
+### `Scored32<C, T>` — the concrete scorer
 
 ```rust
-pub struct Metric32<C> {
+impl<C, T: ScoreSetTrait32<C>> Scored32<C, T> {
+    /// Weighted sum over all metrics.
+    pub fn score(&self, ctx: &C) -> f32;
+
+    /// Per-metric breakdown rows.
+    pub fn breakdown(&self, ctx: &C) -> Vec<Breakdown32>;
+}
+```
+
+`T` is a flat tuple of `Metric32<C, F>` types — each `F` can be a different
+closure type. Trait dispatch is fully static (zero vtable).
+
+### `Metric32<C, F>` — single metric
+
+```rust
+pub struct Metric32<C, F = fn(&C) -> f32> {
     pub name: &'static str,
-    // measure: fn(&C) -> f32     (private)
-    // map01: Map0132              (private)
+    // measure: F          (private)
+    // map01: Map0132       (private)
 }
 
-impl Metric32<C> {
+impl<C, F: Fn(&C) -> f32> Metric32<C, F> {
     pub fn eval(&self, ctx: &C) -> Result<Witnessed<f32, Value01>, &'static str>;
+    pub fn make_breakdown(&self, weight: f32, ctx: &C) -> Breakdown32;
 }
 ```
 
-### `Breakdown<N>`
+### `Breakdown32`
 
 ```rust
 pub struct Breakdown32 {
@@ -138,11 +163,24 @@ pub struct Breakdown32 {
 }
 ```
 
+## Arity limits
+
+By default, `score_set32!` supports up to 8 metrics. Enable higher arities via
+feature flags:
+
+```toml
+score-set = { version = "0.6", features = ["level-16"] }   # up to 16
+score-set = { version = "0.6", features = ["level-32"] }   # up to 32
+score-set = { version = "0.6", features = ["level-64"] }   # up to 64
+```
+
+Generated files (`gen_score_set32.rs` / `gen_score_set64.rs`) are maintained by
+`cargo run -p xtask -- gen --max <N>`.
+
 ## `no_std`
 
 This crate is `#![no_std]` with `extern crate alloc`. It only needs `Vec`
-and `String` from the allocator, and `libm` for `exp` and `log`. Works on bare-metal
-targets.
+from the allocator and `libm` for `exp` and `log`. Works on bare-metal targets.
 
 ## License
 

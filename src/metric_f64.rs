@@ -1,8 +1,8 @@
 //! Core implementation for `f64` scoring.
 //!
-//! This module provides the complete scoring framework: define metrics via a
-//! builder pipeline, combine them into a weighted scorer, and evaluate any
-//! `&C` context to either a weighted sum or a breakdown.
+//! Defines [`Metric64`], [`ScoreSetTrait64`], [`Scored64`], [`Breakdown64`],
+//! the builder pipeline, and the [`score_set64!`] macro (generated into
+//! `gen_score_set64.rs`).
 
 use witnessed::Witnessed;
 

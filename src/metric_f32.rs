@@ -1,8 +1,8 @@
 //! Core implementation for `f32` scoring.
 //!
-//! This module provides the complete scoring framework: define metrics via a
-//! builder pipeline, combine them into a weighted scorer, and evaluate any
-//! `&C` context to either a weighted sum or a breakdown.
+//! Defines [`Metric32`], [`ScoreSetTrait32`], [`Scored32`], [`Breakdown32`],
+//! the builder pipeline, and the [`score_set32!`] macro (generated into
+//! `gen_score_set32.rs`).
 
 use witnessed::Witnessed;
 
