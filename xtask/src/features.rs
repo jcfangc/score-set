@@ -33,7 +33,7 @@ pub fn generate(max: usize) {
     let before = &content[..begin_pos + begin.len()];
     let after = &content[end_pos..];
 
-    let default_level = default_level_for(max);
+    let default_level = default_level_str();
     let mut features = String::from("\n");
 
     // Per-arity features with chain inheritance
@@ -80,14 +80,6 @@ fn power_of_two_levels(max: usize) -> Vec<usize> {
     levels
 }
 
-fn default_level_for(max: usize) -> &'static str {
-    if max <= 8 {
-        "level-8"
-    } else if max <= 16 {
-        "level-16"
-    } else if max <= 32 {
-        "level-32"
-    } else {
-        "level-64"
-    }
+fn default_level_str() -> &'static str {
+    "level-8"
 }

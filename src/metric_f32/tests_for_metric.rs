@@ -4,9 +4,9 @@ use super::*;
 // Context types
 // ---------------------------------------------------------------------------
 
-struct DnaCtx {
-    gc: f32,
-    len: f32,
+struct DnaSequence {
+    gc_bases: f32,
+    total_bases: f32,
 }
 
 // ---------------------------------------------------------------------------
@@ -166,58 +166,68 @@ fn metric_clone() {
 
 #[test]
 fn metrics_with_different_ctx_fields() -> Result<(), &'static str> {
-    let gc = metric32("gc")
+    let gc_content = metric32("gc_content")
         .measure()
-        .by(|ctx: &DnaCtx| ctx.gc)
+        .by(|dna: &DnaSequence| dna.gc_bases / dna.total_bases)
         .map01()
         .identity();
 
-    let len = metric32("len")
+    let length = metric32("length")
         .measure()
-        .by(|ctx: &DnaCtx| ctx.len)
+        .by(|dna: &DnaSequence| dna.total_bases)
         .map01()
-        .linear(100.0);
+        .linear(10_000.0);
 
-    let scorer = ScorerBuilder32::new().add(1.0, gc).add(1.0, len).build()?;
+    let scorer = ScorerBuilder32::new()
+        .add(1.0, gc_content)
+        .add(1.0, length)
+        .build()?;
 
-    let ctx = DnaCtx { gc: 0.6, len: 50.0 };
-    let total = ScoreSet32::score(&scorer, &ctx);
+    let dna = DnaSequence {
+        gc_bases: 2400.0,
+        total_bases: 5000.0,
+    };
+    let total = ScoreSet32::score(&scorer, &dna);
 
-    // gc: 0.6 * 0.5 = 0.3, len: 0.5 * 0.5 = 0.25, total = 0.55
-    assert!((total - 0.55).abs() < 1e-5);
+    // gc_content: 0.48 * 0.5 = 0.24
+    // length:     0.5  * 0.5 = 0.25
+    // total = 0.49
+    assert!((total - 0.49).abs() < 1e-5);
     Ok(())
 }
 
 #[test]
 fn readme_quick_example_compiles() -> Result<(), &'static str> {
     struct Restaurant {
-        cleanliness: f32,
-        food_quality: f32,
+        dust_count: f32, // raw: 0-200 particles
+        avg_rating: f32, // raw: 0-5 stars
     }
 
     let clean = metric32("cleanliness")
         .measure()
-        .by(|r: &Restaurant| r.cleanliness)
+        .by(|r: &Restaurant| 200.0 - r.dust_count)
         .map01()
-        .linear(100.0);
+        .linear(200.0);
 
-    let food = metric32("food")
+    let rating = metric32("rating")
         .measure()
-        .by(|r: &Restaurant| r.food_quality)
+        .by(|r: &Restaurant| r.avg_rating)
         .map01()
-        .identity();
+        .linear(5.0);
 
     let scorer = ScorerBuilder32::new()
         .add(2.0, clean.clone())
-        .add(1.0, food.clone())
+        .add(1.0, rating.clone())
         .build()?;
 
     let r = Restaurant {
-        cleanliness: 80.0,
-        food_quality: 4.0,
+        dust_count: 20.0,
+        avg_rating: 4.0,
     };
     let total: f32 = ScoreSet32::score(&scorer, &r);
-    // clean: 0.8×2/3 ≈ 0.533, food: 1.0×1/3 ≈ 0.333, total ≈ 0.867
+    // cleanliness: (200-20)/200=0.9, weight=2/3≈0.667, contrib=0.6
+    // rating:      4.0/5.0=0.8,     weight=1/3≈0.333, contrib≈0.267
+    // total ≈ 0.867
     assert!((total - 0.866667).abs() < 1e-5);
 
     let rows = ScoreSet32::breakdown(&scorer, &r);
