@@ -2,7 +2,7 @@
 //!
 //! A `#![no_std]` + `alloc` Rust library for building **weighted scoring
 //! operators** — define metrics via a builder pipeline, combine them into a
-//! zero-vtable flat scorer with the [`score_set32!`] macro.
+//! zero-vtable flat scorer with [`ScorerBuilder32`].
 //!
 //! # Quick example
 //!
@@ -26,11 +26,14 @@
 //!     .map01()
 //!     .identity();
 //!
-//! let scorer = score_set32! { 2.0 => clean, 1.0 => food }?;
+//! let scorer = ScorerBuilder32::new()
+//!     .add(2.0, clean)
+//!     .add(1.0, food)
+//!     .build()?;
 //!
 //! let r = Restaurant { cleanliness: 80.0, food_quality: 4.0 };
-//! let total: f32 = scorer.score(&r);
-//! let rows = scorer.breakdown(&r);
+//! let total: f32 = ScoreSet32::score(&scorer, &r);
+//! let rows = ScoreSet32::breakdown(&scorer, &r);
 //! # Ok::<(), &'static str>(())
 //! ```
 //!
@@ -47,7 +50,7 @@
 //!     .map01()
 //!     .identity();
 //!
-//! let scorer = score_set32! { 1.0 => quality }?;
+//! let scorer = ScorerBuilder32::new().add(1.0, quality).build()?;
 //! // scorer only needs &MyCtx — threshold is baked in
 //! ```
 //!
@@ -91,11 +94,11 @@ mod value;
 pub use value::{GtZero, NormalizedContainer, NormalizedWeight, Value01};
 pub use witnessed::{WitnessExt, Witnessed};
 
-// Generated score_set32! macro (f32).  Active by default and in `both` mode.
+// Generated MetricTuple32 impls + ScorerBuilder32::add methods (f32).
 #[cfg(any(not(feature = "f64"), all(feature = "f64", feature = "both")))]
 mod gen_score_set32;
 
-// Generated score_set64! macro (f64).  Active when `f64` or `both` is enabled.
+// Generated MetricTuple64 impls + ScorerBuilder64::add methods (f64).
 #[cfg(feature = "f64")]
 mod gen_score_set64;
 

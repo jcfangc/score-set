@@ -1,5 +1,4 @@
 use super::*;
-use crate::score_set64;
 
 // ============================================================================
 // A1: Map01 parameter validation — Linear max must be positive
@@ -54,7 +53,12 @@ fn infinite_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(score_set64! { f64::INFINITY => m }.is_err());
+    assert!(
+        ScorerBuilder64::new()
+            .add(f64::INFINITY, m)
+            .build()
+            .is_err()
+    );
 }
 
 #[test]
@@ -65,7 +69,12 @@ fn neg_infinite_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(score_set64! { f64::NEG_INFINITY => m }.is_err());
+    assert!(
+        ScorerBuilder64::new()
+            .add(f64::NEG_INFINITY, m)
+            .build()
+            .is_err()
+    );
 }
 
 // ============================================================================
@@ -136,8 +145,11 @@ fn sum_skips_failed_metric() -> Result<(), &'static str> {
 
     // good: score=1.0, norm-weight=0.5, contribution=0.5
     // bad:  skipped, contribution=0.0 — total=0.5
-    let scorer = score_set64! { 1.0 => good, 1.0 => bad }?;
-    let total = scorer.score(&0.0);
+    let scorer = ScorerBuilder64::new()
+        .add(1.0, good)
+        .add(1.0, bad)
+        .build()?;
+    let total = ScoreSet64::score(&scorer, &0.0);
 
     assert!((total - 0.5).abs() < 1e-6);
     Ok(())
@@ -161,7 +173,11 @@ fn breakdown_defaults_failed_metric_to_zero() -> Result<(), &'static str> {
         .map01()
         .by(|_| 1.5);
 
-    let rows = score_set64! { 1.0 => good, 1.0 => bad }?.breakdown(&0.0);
+    let scorer = ScorerBuilder64::new()
+        .add(1.0, good)
+        .add(1.0, bad)
+        .build()?;
+    let rows = ScoreSet64::breakdown(&scorer, &0.0);
 
     assert_eq!(rows.len(), 2);
     let bad_row = rows.iter().find(|r| r.name == "bad").unwrap();
@@ -185,8 +201,8 @@ fn single_element_normalization() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 5.0 => m }?;
-    let total = scorer.score(&0.7);
+    let scorer = ScorerBuilder64::new().add(5.0, m).build()?;
+    let total = ScoreSet64::score(&scorer, &0.7);
 
     // Single weight 5.0 → normalized to 1.0, score = 0.7, total = 0.7
     assert!((total - 0.7).abs() < 1e-6);
@@ -201,7 +217,8 @@ fn single_element_breakdown_weight_is_one() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows = score_set64! { 3.0 => m }?.breakdown(&0.4);
+    let scorer = ScorerBuilder64::new().add(3.0, m).build()?;
+    let rows = ScoreSet64::breakdown(&scorer, &0.4);
 
     assert_eq!(rows.len(), 1);
     assert!((rows[0].weight - 1.0).abs() < 1e-7);
@@ -294,8 +311,11 @@ fn extreme_weights_normalize() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { f64::MIN_POSITIVE => m1, f64::MAX => m2 }?;
-    let total = scorer.score(&0.0);
+    let scorer = ScorerBuilder64::new()
+        .add(f64::MIN_POSITIVE, m1)
+        .add(f64::MAX, m2)
+        .build()?;
+    let total = ScoreSet64::score(&scorer, &0.0);
 
     assert!(total.is_finite());
     assert!(total < 1e-6);
@@ -314,18 +334,18 @@ fn multiple_metrics_normalize() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! {
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-    }?;
+    let scorer = ScorerBuilder64::new()
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .build()?;
 
-    let total = scorer.score(&0.5);
+    let total = ScoreSet64::score(&scorer, &0.5);
     assert!(total.is_finite());
     assert!((total - 0.5).abs() < 1e-6);
     Ok(())
@@ -339,13 +359,13 @@ fn multiple_metrics_breakdown_consistent() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows = score_set64! {
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-        1.0 => m.clone(),
-    }?
-    .breakdown(&0.3);
+    let scorer = ScorerBuilder64::new()
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .add(1.0, m.clone())
+        .build()?;
+    let rows = ScoreSet64::breakdown(&scorer, &0.3);
 
     assert_eq!(rows.len(), 4);
     for r in &rows {
@@ -398,24 +418,24 @@ fn heterogeneous_capturing_closures_deterministic() -> Result<(), &'static str> 
         .map01()
         .identity();
 
-    let scorer = score_set64! {
-        1.0 => with_vec,
-        2.0 => with_threshold,
-        1.0 => non_capturing,
-    }?;
+    let scorer = ScorerBuilder64::new()
+        .add(1.0, with_vec)
+        .add(2.0, with_threshold)
+        .add(1.0, non_capturing)
+        .build()?;
 
     // Deterministic: same ctx → same result every time
-    let r1 = scorer.score(&0.8);
-    let r2 = scorer.score(&0.8);
+    let r1 = ScoreSet64::score(&scorer, &0.8);
+    let r2 = ScoreSet64::score(&scorer, &0.8);
     assert!((r1 - r2).abs() < 1e-9);
 
     // Different ctx → different result
-    let lo = scorer.score(&0.0);
-    let hi = scorer.score(&1.0);
+    let lo = ScoreSet64::score(&scorer, &0.0);
+    let hi = ScoreSet64::score(&scorer, &1.0);
     assert!(hi > lo);
 
     // Breakdown matches score
-    let rows = scorer.breakdown(&0.8);
+    let rows = ScoreSet64::breakdown(&scorer, &0.8);
     let breakdown_sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((r1 - breakdown_sum).abs() < 1e-6);
 
@@ -451,9 +471,9 @@ fn capturing_closure_repeated_eval_proves_fn_bound() -> Result<(), &'static str>
     assert!((s3 - 0.5).abs() < 1e-6);
 
     // Also through score() — trait-dispatched
-    let scorer = score_set64! { 3.0 => m }?;
-    let r1 = scorer.score(&0.5);
-    let r2 = scorer.score(&0.5);
+    let scorer = ScorerBuilder64::new().add(3.0, m).build()?;
+    let r1 = ScoreSet64::score(&scorer, &0.5);
+    let r2 = ScoreSet64::score(&scorer, &0.5);
     assert!((r1 - 0.5).abs() < 1e-6);
     assert!((r2 - 0.5).abs() < 1e-6);
 

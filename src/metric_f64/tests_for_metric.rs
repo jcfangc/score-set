@@ -1,5 +1,4 @@
 use super::*;
-use crate::score_set64;
 
 // ---------------------------------------------------------------------------
 // Context types
@@ -179,10 +178,10 @@ fn metrics_with_different_ctx_fields() -> Result<(), &'static str> {
         .map01()
         .linear(100.0);
 
-    let scorer = score_set64! { 1.0 => gc, 1.0 => len }?;
+    let scorer = ScorerBuilder64::new().add(1.0, gc).add(1.0, len).build()?;
 
     let ctx = DnaCtx { gc: 0.6, len: 50.0 };
-    let total = scorer.score(&ctx);
+    let total = ScoreSet64::score(&scorer, &ctx);
 
     // gc: 0.6 * 0.5 = 0.3, len: 0.5 * 0.5 = 0.25, total = 0.55
     assert!((total - 0.55).abs() < 1e-5);
@@ -208,17 +207,20 @@ fn readme_quick_example_compiles() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 2.0 => clean.clone(), 1.0 => food.clone() }?;
+    let scorer = ScorerBuilder64::new()
+        .add(2.0, clean.clone())
+        .add(1.0, food.clone())
+        .build()?;
 
     let r = Restaurant {
         cleanliness: 80.0,
         food_quality: 4.0,
     };
-    let total: f64 = scorer.score(&r);
+    let total: f64 = ScoreSet64::score(&scorer, &r);
     // clean: 0.8×2/3 ≈ 0.533, food: 1.0×1/3 ≈ 0.333, total ≈ 0.867
     assert!((total - 0.866667).abs() < 1e-5);
 
-    let rows = score_set64! { 2.0 => clean, 1.0 => food }?.breakdown(&r);
+    let rows = ScoreSet64::breakdown(&scorer, &r);
 
     assert_eq!(rows.len(), 2);
     Ok(())

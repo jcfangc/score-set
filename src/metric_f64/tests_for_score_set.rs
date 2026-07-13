@@ -1,9 +1,15 @@
 use super::*;
-use crate::score_set64;
 
 // ---------------------------------------------------------------------------
-// score_set64! macro tests
+// ScorerBuilder64 + Scorer64 + ScoreSet64 tests
 // ---------------------------------------------------------------------------
+
+#[test]
+fn empty_builder_noop() {
+    // ScorerBuilder64<C, ()> can be created but cannot build (no MetricTuple64
+    // impl for ()).  Just verify new() works.
+    let _builder: ScorerBuilder64<f64, ()> = ScorerBuilder64::new();
+}
 
 #[test]
 fn empty_set_rejected_via_zero_weight() {
@@ -12,7 +18,7 @@ fn empty_set_rejected_via_zero_weight() {
         .by(|ctx: &f64| *ctx)
         .map01()
         .identity();
-    assert!(score_set64! { 0.0 => m }.is_err());
+    assert!(ScorerBuilder64::new().add(0.0, m).build().is_err());
 }
 
 #[test]
@@ -23,8 +29,8 @@ fn single_metric_score() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 1.0 => m }?;
-    let result = scorer.score(&0.5);
+    let scorer = ScorerBuilder64::new().add(1.0, m).build()?;
+    let result = ScoreSet64::score(&scorer, &0.5);
     assert!((result - 0.5).abs() < 1e-6);
     Ok(())
 }
@@ -52,13 +58,13 @@ fn multiple_metrics_weighted_sum() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 2.0 => m1, 3.0 => m2 }?;
+    let scorer = ScorerBuilder64::new().add(2.0, m1).add(3.0, m2).build()?;
 
     let ctx = RestaurantCtx {
         cleanliness: 80.0,
         food_quality: 4.0,
     };
-    let total = scorer.score(&ctx);
+    let total = ScoreSet64::score(&scorer, &ctx);
 
     // clean: 80/100 = 0.8, weight = 2/5 = 0.4, contribution = 0.64
     // food: 4.0 clamped to 1.0 (identity), weight = 3/5 = 0.6, contribution = 0.6
@@ -86,10 +92,13 @@ fn breakdown_matches_score() -> Result<(), &'static str> {
         .map01()
         .linear(100.0);
 
-    let scorer = score_set64! { 2.0 => gc.clone(), 1.0 => len.clone() }?;
+    let scorer = ScorerBuilder64::new()
+        .add(2.0, gc.clone())
+        .add(1.0, len.clone())
+        .build()?;
     let ctx = DnaCtx { gc: 0.6, len: 50.0 };
-    let total = scorer.score(&ctx);
-    let rows = scorer.breakdown(&ctx);
+    let total = ScoreSet64::score(&scorer, &ctx);
+    let rows = ScoreSet64::breakdown(&scorer, &ctx);
 
     let breakdown_sum: f64 = rows.iter().map(|r| r.contribution).sum();
     assert!((total - breakdown_sum).abs() < 1e-5);
@@ -112,7 +121,7 @@ fn zero_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(score_set64! { 0.0 => m }.is_err());
+    assert!(ScorerBuilder64::new().add(0.0, m).build().is_err());
 }
 
 #[test]
@@ -123,7 +132,7 @@ fn negative_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(score_set64! { -1.0 => m }.is_err());
+    assert!(ScorerBuilder64::new().add(-1.0, m).build().is_err());
 }
 
 #[test]
@@ -134,7 +143,7 @@ fn nan_weight_rejected() {
         .map01()
         .identity();
 
-    assert!(score_set64! { f64::NAN => m }.is_err());
+    assert!(ScorerBuilder64::new().add(f64::NAN, m).build().is_err());
 }
 
 #[test]
@@ -151,8 +160,8 @@ fn two_metrics_equal_weights() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 1.0 => m1, 1.0 => m2 }?;
-    let result = scorer.score(&0.5);
+    let scorer = ScorerBuilder64::new().add(1.0, m1).add(1.0, m2).build()?;
+    let result = ScoreSet64::score(&scorer, &0.5);
     assert!((result - 0.5).abs() < 1e-6);
     Ok(())
 }
@@ -171,8 +180,8 @@ fn equal_weights_normalization() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let scorer = score_set64! { 1.0 => m1, 1.0 => m2 }?;
-    let result = scorer.score(&0.0);
+    let scorer = ScorerBuilder64::new().add(1.0, m1).add(1.0, m2).build()?;
+    let result = ScoreSet64::score(&scorer, &0.0);
     // m1: 0.0 * 0.5 = 0.0, m2: 1.0 * 0.5 = 0.5
     assert!((result - 0.5).abs() < 1e-6);
     Ok(())
@@ -191,7 +200,7 @@ struct DnaScorerConfig {
 /// the scorer only needs `&DnaCtx` to produce a score.
 fn build_dna_scorer(
     cfg: &DnaScorerConfig,
-) -> Result<Scored64<DnaCtx, impl ScoreSetTrait64<DnaCtx>>, &'static str> {
+) -> Result<Scorer64<DnaCtx, impl MetricTuple64<DnaCtx>>, &'static str> {
     let gc = {
         let t = cfg.gc_threshold;
         metric64("gc")
@@ -210,7 +219,7 @@ fn build_dna_scorer(
             .linear(max)
     };
 
-    score_set64! { 2.0 => gc, 1.0 => len }
+    ScorerBuilder64::new().add(2.0, gc).add(1.0, len).build()
 }
 
 #[test]
@@ -227,8 +236,8 @@ fn partial_application_dna_scorer() -> Result<(), &'static str> {
     let ctx1 = DnaCtx { gc: 0.8, len: 80.0 };
     let ctx2 = DnaCtx { gc: 0.3, len: 50.0 };
 
-    let s1 = scorer.score(&ctx1);
-    let s2 = scorer.score(&ctx2);
+    let s1 = ScoreSet64::score(&scorer, &ctx1);
+    let s2 = ScoreSet64::score(&scorer, &ctx2);
 
     // ctx1: gc exceeds threshold, ctx2: gc below threshold
     assert!(s1 > s2);
@@ -241,12 +250,12 @@ fn partial_application_dna_scorer() -> Result<(), &'static str> {
         len_max: 50.0,
     };
     let strict_scorer = build_dna_scorer(&strict)?;
-    let s_strict = strict_scorer.score(&ctx1);
+    let s_strict = ScoreSet64::score(&strict_scorer, &ctx1);
     // gc_threshold=0.9, ctx1.gc=0.8 is below → gc contributes 0
     assert!(s_strict < s1);
 
     // Breakdown on the original scorer
-    let rows = scorer.breakdown(&ctx1);
+    let rows = ScoreSet64::breakdown(&scorer, &ctx1);
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].name, "gc");
 

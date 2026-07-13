@@ -61,11 +61,7 @@ fn generate_f64() {
         &out_dir,
         "src/gen_score_set32.rs",
         "src/gen_score_set64.rs",
-        |s| {
-            s.replace("f32", "f64")
-                .replace("32", "64")
-                .replace("macro_rules! score_set32", "macro_rules! score_set64")
-        },
+        |s| s.replace("f32", "f64").replace("32", "64"),
     );
 
     // --- Test files ---
@@ -82,9 +78,6 @@ fn generate_f64() {
             let test_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
             let test_content = test_content.replace("f32", "f64");
             let test_content = test_content.replace("32", "64");
-            let test_content = test_content.replace("score_set32!", "score_set64!");
-            let test_content =
-                test_content.replace("use crate::score_set32;", "use crate::score_set64;");
             let dest = test_f64_dir.join(name_str);
             std::fs::write(&dest, &test_content).unwrap_or_else(|e| {
                 eprintln!("warning: {dest:?}: {e}");
