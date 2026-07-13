@@ -1,6 +1,6 @@
 //! Tests for precision coexistence.
 //!
-//! These tests verify that in `both` mode, `Score32`/`Score64` and their
+//! These tests verify that in `both` mode, `Metric32`/`Metric64` and their
 //! associated types coexist without name conflicts, produce values of the
 //! correct types, and remain type-safe (no accidental mixing).
 //!
@@ -30,7 +30,10 @@ fn both_families_evaluate() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let s32: f32 = score_set32! { 1.0 => m32 }?.score(&Ctx { a: 0.5, b: 0.0 });
+    let s32: f32 = ScorerBuilder32::new()
+        .add(1.0, m32)
+        .build()?
+        .score(&Ctx { a: 0.5, b: 0.0 });
 
     // f64 family
     let m64 = metric64("b")
@@ -39,7 +42,10 @@ fn both_families_evaluate() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let s64: f64 = score_set64! { 1.0 => m64 }?.score(&Ctx { a: 0.0, b: 0.75 });
+    let s64: f64 = ScorerBuilder64::new()
+        .add(1.0, m64)
+        .build()?
+        .score(&Ctx { a: 0.0, b: 0.75 });
 
     assert!((s32 - 0.5).abs() < 1e-6);
     assert!((s64 - 0.75).abs() < 1e-9);
@@ -54,7 +60,10 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows = score_set32! { 2.0 => m32 }?.breakdown(&0.5);
+    let rows = ScorerBuilder32::new()
+        .add(2.0, m32)
+        .build()?
+        .breakdown(&0.5);
     let _: f32 = rows[0].raw;
     let _: f32 = rows[0].score;
     let _: f32 = rows[0].weight;
@@ -66,7 +75,10 @@ fn both_families_breakdown() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let rows = score_set64! { 3.0 => m64 }?.breakdown(&0.6);
+    let rows = ScorerBuilder64::new()
+        .add(3.0, m64)
+        .build()?
+        .breakdown(&0.6);
     let _: f64 = rows[0].raw;
     let _: f64 = rows[0].score;
     let _: f64 = rows[0].weight;
@@ -89,7 +101,11 @@ fn both_families_multiple_metrics() -> Result<(), &'static str> {
         .map01()
         .identity();
 
-    let total: f32 = score_set32! { 1.0 => m1, 2.0 => m2 }?.score(&Ctx { a: 0.3, b: 0.0 });
+    let total: f32 = ScorerBuilder32::new()
+        .add(1.0, m1)
+        .add(2.0, m2)
+        .build()?
+        .score(&Ctx { a: 0.3, b: 0.0 });
 
     let m3 = metric64("b")
         .measure()
@@ -97,7 +113,10 @@ fn both_families_multiple_metrics() -> Result<(), &'static str> {
         .map01()
         .inc_sigmoid(0.0, 1.0);
 
-    let total64: f64 = score_set64! { 5.0 => m3 }?.score(&Ctx { a: 0.0, b: 0.7 });
+    let total64: f64 = ScorerBuilder64::new()
+        .add(5.0, m3)
+        .build()?
+        .score(&Ctx { a: 0.0, b: 0.7 });
 
     assert!(total > 0.0);
     assert!(total64 > 0.0);

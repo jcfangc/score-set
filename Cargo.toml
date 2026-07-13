@@ -109,4 +109,7 @@ level-32 = ["fixed-tuple-32"]
 level-64 = ["fixed-tuple-64"]
 default = ["level-8"]
 
+[dev-dependencies]
+proptest = "1.11.0"
+
 # <<<< END generated features
