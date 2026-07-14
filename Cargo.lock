@@ -337,10 +337,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60dfef5521792043abeb0b4328f39f4f17652a512d634e02bd9374ad214ec5c5"
 
 [[package]]
-name = "xtask"
-version = "0.1.0"
-
-[[package]]
 name = "zerocopy"
 version = "0.8.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
