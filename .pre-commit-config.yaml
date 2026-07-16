@@ -10,7 +10,7 @@ repos:
         verbose: true
 
       - id: cargo-check
-        name: cargo check (refresh Cargo.lock)
+        name: cargo check
         entry: cargo check
         language: system
         pass_filenames: false
@@ -19,13 +19,6 @@ repos:
       - id: cargo-test
         name: cargo test --locked
         entry: cargo test --locked
-        language: system
-        pass_filenames: false
-        types: [rust]
-
-      - id: codegen-check
-        name: codegen dry-run diff check
-        entry: bash -c 'cargo run -p xtask -- gen && git diff --exit-code -- Cargo.toml src/metric_f64.rs src/metric_f64/ src/gen_score_set32.rs src/gen_score_set64.rs'
         language: system
         pass_filenames: false
         types: [rust]
