@@ -1,3 +1,9 @@
+//! A small library for composing weighted scoring metrics into score sets.
+//!
+//! The crate provides:
+//! - `Metric32` / `Metric64` for combining a measure, a normalization map, and a weight.
+//! - `DynScoreSet32` / `DynScoreSet64` for storing heterogeneous metrics behind trait objects.
+
 mod dyn_score_set;
 mod metric;
 pub mod traits;

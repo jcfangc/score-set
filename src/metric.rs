@@ -1,5 +1,6 @@
 use crate::traits::{EvalF32, EvalF64, Map01F32, Map01F64, MeasureF32, MeasureF64};
 
+/// A weighted `f64` metric built from a measure and a normalization map.
 pub struct Metric64<M, G> {
     measure: M,
     map: G,
@@ -7,6 +8,7 @@ pub struct Metric64<M, G> {
 }
 
 impl<M, G> Metric64<M, G> {
+    /// Creates a new `Metric64`.
     pub fn new(measure: M, map: G, weight: f64) -> Self {
         Self {
             measure,
@@ -28,6 +30,7 @@ where
     }
 }
 
+/// A weighted `f32` metric built from a measure and a normalization map.
 pub struct Metric32<M, G> {
     measure: M,
     map: G,
@@ -35,6 +38,7 @@ pub struct Metric32<M, G> {
 }
 
 impl<M, G> Metric32<M, G> {
+    /// Creates a new `Metric32`.
     pub fn new(measure: M, map: G, weight: f32) -> Self {
         Self {
             measure,
