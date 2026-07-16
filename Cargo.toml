@@ -1,10 +1,7 @@
-[workspace]
-members = ["xtask"]
-resolver = "3"
 
 [package]
 name = "score-set"
-version = "0.6.0"
+version = "1.0.0"
 edition = "2024"
 description = "A Rust library for building static weighted scoring operator sets"
 license = "MIT OR Apache-2.0"
@@ -15,98 +12,3 @@ exclude = ["src/lab.rs", "src/**/tests_for_*.rs"]
 
 [lib]
 doctest = false
-
-[dependencies]
-libm = "0.2"
-witnessed = "0.8.0"
-
-# Precision features (default: f32 only).
-#
-#   (default)     → module metric_f32, types ScoreSet32 / Metric32 / …
-#   f64           → module metric_f64, types ScoreSet64 / Metric64 / …
-#   f64 + both    → metric_f32 + metric_f64, both type families available
-#
-# Run `cargo run -p xtask -- gen` after changing types in metric_f32.rs.
-[[test]]
-name = "both_precision"
-required-features = ["both"]
-
-[features]
-f64 = []
-both = ["f64"]
-
-# >>>> BEGIN generated features
-# Per-arity feature gates. Enabling `fixed-tuple-64` pulls in 1–64.
-fixed-tuple-1 = []
-fixed-tuple-2 = ["fixed-tuple-1"]
-fixed-tuple-3 = ["fixed-tuple-2"]
-fixed-tuple-4 = ["fixed-tuple-3"]
-fixed-tuple-5 = ["fixed-tuple-4"]
-fixed-tuple-6 = ["fixed-tuple-5"]
-fixed-tuple-7 = ["fixed-tuple-6"]
-fixed-tuple-8 = ["fixed-tuple-7"]
-fixed-tuple-9 = ["fixed-tuple-8"]
-fixed-tuple-10 = ["fixed-tuple-9"]
-fixed-tuple-11 = ["fixed-tuple-10"]
-fixed-tuple-12 = ["fixed-tuple-11"]
-fixed-tuple-13 = ["fixed-tuple-12"]
-fixed-tuple-14 = ["fixed-tuple-13"]
-fixed-tuple-15 = ["fixed-tuple-14"]
-fixed-tuple-16 = ["fixed-tuple-15"]
-fixed-tuple-17 = ["fixed-tuple-16"]
-fixed-tuple-18 = ["fixed-tuple-17"]
-fixed-tuple-19 = ["fixed-tuple-18"]
-fixed-tuple-20 = ["fixed-tuple-19"]
-fixed-tuple-21 = ["fixed-tuple-20"]
-fixed-tuple-22 = ["fixed-tuple-21"]
-fixed-tuple-23 = ["fixed-tuple-22"]
-fixed-tuple-24 = ["fixed-tuple-23"]
-fixed-tuple-25 = ["fixed-tuple-24"]
-fixed-tuple-26 = ["fixed-tuple-25"]
-fixed-tuple-27 = ["fixed-tuple-26"]
-fixed-tuple-28 = ["fixed-tuple-27"]
-fixed-tuple-29 = ["fixed-tuple-28"]
-fixed-tuple-30 = ["fixed-tuple-29"]
-fixed-tuple-31 = ["fixed-tuple-30"]
-fixed-tuple-32 = ["fixed-tuple-31"]
-fixed-tuple-33 = ["fixed-tuple-32"]
-fixed-tuple-34 = ["fixed-tuple-33"]
-fixed-tuple-35 = ["fixed-tuple-34"]
-fixed-tuple-36 = ["fixed-tuple-35"]
-fixed-tuple-37 = ["fixed-tuple-36"]
-fixed-tuple-38 = ["fixed-tuple-37"]
-fixed-tuple-39 = ["fixed-tuple-38"]
-fixed-tuple-40 = ["fixed-tuple-39"]
-fixed-tuple-41 = ["fixed-tuple-40"]
-fixed-tuple-42 = ["fixed-tuple-41"]
-fixed-tuple-43 = ["fixed-tuple-42"]
-fixed-tuple-44 = ["fixed-tuple-43"]
-fixed-tuple-45 = ["fixed-tuple-44"]
-fixed-tuple-46 = ["fixed-tuple-45"]
-fixed-tuple-47 = ["fixed-tuple-46"]
-fixed-tuple-48 = ["fixed-tuple-47"]
-fixed-tuple-49 = ["fixed-tuple-48"]
-fixed-tuple-50 = ["fixed-tuple-49"]
-fixed-tuple-51 = ["fixed-tuple-50"]
-fixed-tuple-52 = ["fixed-tuple-51"]
-fixed-tuple-53 = ["fixed-tuple-52"]
-fixed-tuple-54 = ["fixed-tuple-53"]
-fixed-tuple-55 = ["fixed-tuple-54"]
-fixed-tuple-56 = ["fixed-tuple-55"]
-fixed-tuple-57 = ["fixed-tuple-56"]
-fixed-tuple-58 = ["fixed-tuple-57"]
-fixed-tuple-59 = ["fixed-tuple-58"]
-fixed-tuple-60 = ["fixed-tuple-59"]
-fixed-tuple-61 = ["fixed-tuple-60"]
-fixed-tuple-62 = ["fixed-tuple-61"]
-fixed-tuple-63 = ["fixed-tuple-62"]
-fixed-tuple-64 = ["fixed-tuple-63"]
-
-# Umbrella features at power-of-two boundaries.
-level-8 = ["fixed-tuple-8"]
-level-16 = ["fixed-tuple-16"]
-level-32 = ["fixed-tuple-32"]
-level-64 = ["fixed-tuple-64"]
-default = ["level-8"]
-
-# <<<< END generated features
