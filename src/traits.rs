@@ -1,11 +1,23 @@
-pub trait Measure<Ctx: ?Sized>: Send + Sync {
+pub trait MeasureF64<Ctx: ?Sized>: Send + Sync {
     fn measure(&self, ctx: &Ctx) -> f64;
 }
 
-pub trait Map01: Send + Sync {
+pub trait Map01F64: Send + Sync {
     fn map(&self, value: f64) -> f64;
 }
 
-pub trait Eval<Ctx: ?Sized>: Send + Sync {
+pub trait EvalF64<Ctx: ?Sized>: Send + Sync {
     fn eval(&self, ctx: &Ctx) -> f64;
+}
+
+pub trait MeasureF32<Ctx: ?Sized>: Send + Sync {
+    fn measure(&self, ctx: &Ctx) -> f32;
+}
+
+pub trait Map01F32: Send + Sync {
+    fn map(&self, value: f32) -> f32;
+}
+
+pub trait EvalF32<Ctx: ?Sized>: Send + Sync {
+    fn eval(&self, ctx: &Ctx) -> f32;
 }
