@@ -4,8 +4,7 @@ A score is modeled as a weighted sum of metrics. For a context $x$, each metric 
 
 $$
 \operatorname{metric}(x)
-========================
-
+=
 w,g(m(x))
 $$
 
@@ -13,8 +12,7 @@ A score set containing $n$ metrics evaluates:
 
 $$
 \operatorname{score}(x)
-=======================
-
+=
 \sum_{i=1}^{n}
 w_i g_i(m_i(x))
 $$
@@ -68,8 +66,7 @@ $$
 
 $$
 E_{{A,B}}
-=========
-
+=
 \operatorname{Append}
 \bigl(
 \operatorname{Append}(Z,A),
@@ -89,8 +86,7 @@ where $\mathcal{M}$ is the set of available metrics. The number of possible subs
 
 $$
 \left|\mathcal{P}(\mathcal{M})\right|
-=====================================
-
+=
 2^N
 $$
 
@@ -236,8 +232,7 @@ When a metric composition is known at compile time, its structure can be encoded
 
 $$
 \operatorname{StaticScore}
-==========================
-
+=
 T_1\times T_2\times\cdots\times T_n
 $$
 
@@ -247,8 +242,7 @@ When the composition is selected at runtime, the program instead needs a value-l
 
 $$
 \operatorname{DynamicScore}
-===========================
-
+=
 [T_{i_1},T_{i_2},\ldots,T_{i_k}]
 $$
 
