@@ -1,158 +1,136 @@
 # score-set
-
-`score-set` provides small composable primitives for building weighted scoring functions.
+## License
+`score-set` provides small, statically composed primitives for building
+weighted scoring functions.
 
 A metric consists of:
 
-* a `Measure<Ctx>` that extracts a raw value from a context;
-* a `Map01` that maps the raw value into a score;
-* a weight applied to the mapped score.
+- a `Measure<Ctx>` that extracts a raw value from a context;
+- a `Map01F32` or `Map01F64` that normalizes that value;
+- a weight applied to the normalized score.
 
-For a context $x$, a metric evaluates:
-
-$$
-\operatorname{metric}(x)
-========================
-
-w \cdot g(m(x))
-$$
-
-Multiple metrics can be collected into a `DynScoreSet` and evaluated as:
-
-$$
-\operatorname{score}(x)
-=======================
-
-\sum_{i=1}^{n}
-w_i g_i(m_i(x))
-$$
+The normalized result is returned as `Witnessed<f32, V01>` or
+`Witnessed<f64, V01>`. This makes the `[0, 1]` boundary an explicit type-level
+fact for downstream code.
 
 ## Installation
 
 ```toml
 [dependencies]
-score-set = "1.0.0"
+score-set = "2.0.0"
 ```
 
 ## Quick start
 
-Define the context being scored:
+The measurement output and map input are connected through associated types.
+The mapper must accept exactly the value produced by the measurement.
 
 ```rust
-use score_set::{DynScoreSet, traits::{Eval, Map01, Measure}, Metric};
+use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01}};
+use witnessed::{WitnessExt, Witnessed};
 
 struct Context {
     latency_ms: f64,
-    cpu_usage: f64,
 }
-```
 
-Implement measurements that extract raw values from the context:
-
-```rust
 struct Latency;
 
 impl Measure<Context> for Latency {
-    fn measure(&self, ctx: &Context) -> f64 {
+    type Output = f64;
+
+    fn measure(&self, ctx: &Context) -> Self::Output {
         ctx.latency_ms
     }
 }
 
-struct CpuUsage;
-
-impl Measure<Context> for CpuUsage {
-    fn measure(&self, ctx: &Context) -> f64 {
-        ctx.cpu_usage
-    }
-}
-```
-
-Implement mappings from raw measurements to scores:
-
-```rust
 struct LowerIsBetter {
     limit: f64,
 }
 
-impl Map01 for LowerIsBetter {
-    fn map(&self, value: f64) -> f64 {
-        (1.0 - value / self.limit).clamp(0.0, 1.0)
+impl Map01F64 for LowerIsBetter {
+    type Input = f64;
+
+    fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
+        let score = (1.0 - value / self.limit).clamp(0.0, 1.0);
+
+        // Safety: `score` was clamped to `[0, 1]` above.
+        unsafe { score.witness().by_unchecked::<V01>() }
     }
 }
 
-struct Identity;
-
-impl Map01 for Identity {
-    fn map(&self, value: f64) -> f64 {
-        value.clamp(0.0, 1.0)
-    }
-}
-```
-
-A single metric can be evaluated directly:
-
-```rust
-let ctx = Context {
-    latency_ms: 40.0,
-    cpu_usage: 0.25,
-};
-
-let latency = Metric::new(
-    Latency,
-    LowerIsBetter { limit: 100.0 },
-    0.7,
-);
-
-let score = latency.eval(&ctx);
+let metric = Metric64::new(Latency, LowerIsBetter { limit: 100.0 }, 0.7);
+let score = metric.eval(&Context { latency_ms: 40.0 });
 
 assert!((score - 0.42).abs() < 1e-12);
 ```
 
-Runtime-selected metrics can be collected into a `DynScoreSet`:
+`Map01F32` has the same API and returns `Witnessed<f32, V01>`:
 
 ```rust
-let score_set = DynScoreSet::<Context>::builder()
-    .append(Metric::new(
-        Latency,
-        LowerIsBetter { limit: 100.0 },
-        0.7,
-    ))
-    .append(Metric::new(
-        CpuUsage,
-        Identity,
-        0.3,
-    ))
-    .build();
+use score_set::traits::{Map01F32, V01};
+use witnessed::{WitnessExt, Witnessed};
 
-let score = score_set.eval(&ctx);
+struct Identity;
 
-assert!((score - 0.495).abs() < 1e-12);
-```
+impl Map01F32 for Identity {
+    type Input = f32;
 
-`DynScoreSet` stores heterogeneous concrete metrics behind `dyn Eval<Ctx>`. Each individual `Metric<M, G>` still uses concrete measurement and mapping types; dynamic dispatch occurs only when the score set invokes each metric.
+    fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
+        let score = value.clamp(0.0, 1.0);
 
-## Static composition
-
-Applications with a compile-time-known metric set may define a concrete score-set type directly:
-
-```rust
-struct DefaultScoreSet {
-    latency: Metric<Latency, LowerIsBetter>,
-    cpu: Metric<CpuUsage, Identity>,
-}
-
-impl Eval<Context> for DefaultScoreSet {
-    fn eval(&self, ctx: &Context) -> f64 {
-        self.latency.eval(ctx) + self.cpu.eval(ctx)
+        // Safety: `score` was clamped to `[0, 1]` above.
+        unsafe { score.witness().by_unchecked::<V01>() }
     }
 }
 ```
 
-This representation does not require dynamic dispatch and allows the complete evaluation path to be monomorphized.
+## Dynamic score sets
 
-The library does not require either representation. Applications may use concrete score sets, `DynScoreSet`, or both, depending on whether their metric composition is known at compile time or selected at runtime.
+`DynScoreSet32<Ctx>` and `DynScoreSet64<Ctx>` store heterogeneous metrics
+behind `EvalF32<Ctx>` or `EvalF64<Ctx>` trait objects.
 
-# Design Rationale
+```rust
+use score_set::{DynScoreSet64, Metric64};
+
+let score_set = DynScoreSet64::<Context>::builder()
+    .append(Metric64::new(Latency, LowerIsBetter { limit: 100.0 }, 0.7))
+    .build();
+
+let score = score_set.eval(&Context { latency_ms: 40.0 });
+```
+
+Use the concrete `Metric32`/`Metric64` types when the metric composition is
+known at compile time. Use a dynamic score set when the enabled metrics are
+selected at runtime.
+
+## Witnesses
+
+`Measure` returns an ordinary associated `Output`. The witness is produced by
+the normalization map:
+
+```rust
+pub trait Measure<Ctx: ?Sized> {
+    type Output;
+
+    fn measure(&self, ctx: &Ctx) -> Self::Output;
+}
+
+pub trait Map01F64 {
+    type Input;
+
+    fn map(&self, value: Self::Input) -> Witnessed<f64, V01>;
+}
+```
+
+`V01` is a marker type representing a value known to be in the normalized
+`[0, 1]` range. `Witnessed<T, V01>` is a transparent wrapper and has no
+runtime witness field.
+
+When a result is derived from already-witnessed values and rechecking is
+unnecessary, `by_unchecked` may be used at an explicitly audited unsafe
+boundary. The caller must document why the invariant is preserved.
+
++# Design Rationale
 
 `score-set` models a score as a weighted composition of a measurement and a mapping function.
 
@@ -690,3 +668,10 @@ The library supports both representations without requiring applications to expo
 Applications may use only concrete score sets, only `DynScoreSet`, or a combination of the two.
 
 Dynamic dispatch is introduced only when runtime heterogeneity must be represented. Concrete metric implementations remain generic and statically typed.
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0
+- MIT License

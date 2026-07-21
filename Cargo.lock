@@ -4,4 +4,13 @@ version = 4
 
 [[package]]
 name = "score-set"
-version = "1.0.0"
+version = "2.0.0"
+dependencies = [
+ "witnessed",
+]
+
+[[package]]
+name = "witnessed"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60dfef5521792043abeb0b4328f39f4f17652a512d634e02bd9374ad214ec5c5"

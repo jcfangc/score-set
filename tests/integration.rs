@@ -1,7 +1,8 @@
 use score_set::{
     DynScoreSet32, DynScoreSet64, Metric32, Metric64,
-    traits::{EvalF32, EvalF64, Map01F32, Map01F64, MeasureF32, MeasureF64},
+    traits::{EvalF32, EvalF64, Map01F32, Map01F64, Measure, V01},
 };
+use witnessed::{WitnessExt, Witnessed};
 
 mod f64_tests {
     use super::*;
@@ -14,16 +15,20 @@ mod f64_tests {
 
     struct Latency;
 
-    impl MeasureF64<Context> for Latency {
-        fn measure(&self, ctx: &Context) -> f64 {
+    impl Measure<Context> for Latency {
+        type Output = f64;
+
+        fn measure(&self, ctx: &Context) -> Self::Output {
             ctx.latency_ms
         }
     }
 
     struct CpuUsage;
 
-    impl MeasureF64<Context> for CpuUsage {
-        fn measure(&self, ctx: &Context) -> f64 {
+    impl Measure<Context> for CpuUsage {
+        type Output = f64;
+
+        fn measure(&self, ctx: &Context) -> Self::Output {
             ctx.cpu_usage
         }
     }
@@ -33,16 +38,24 @@ mod f64_tests {
     }
 
     impl Map01F64 for LowerIsBetter {
-        fn map(&self, value: f64) -> f64 {
-            (1.0 - value / self.limit).clamp(0.0, 1.0)
+        type Input = f64;
+
+        fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
+            let value = (1.0 - value / self.limit).clamp(0.0, 1.0);
+            // Safety: the value is clamped to the `[0, 1]` range above.
+            unsafe { value.witness().by_unchecked::<V01>() }
         }
     }
 
     struct Identity;
 
     impl Map01F64 for Identity {
-        fn map(&self, value: f64) -> f64 {
-            value.clamp(0.0, 1.0)
+        type Input = f64;
+
+        fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
+            let value = value.clamp(0.0, 1.0);
+            // Safety: the value is clamped to the `[0, 1]` range above.
+            unsafe { value.witness().by_unchecked::<V01>() }
         }
     }
 
@@ -124,16 +137,20 @@ mod f32_tests {
 
     struct Latency;
 
-    impl MeasureF32<Context> for Latency {
-        fn measure(&self, ctx: &Context) -> f32 {
+    impl Measure<Context> for Latency {
+        type Output = f32;
+
+        fn measure(&self, ctx: &Context) -> Self::Output {
             ctx.latency_ms
         }
     }
 
     struct CpuUsage;
 
-    impl MeasureF32<Context> for CpuUsage {
-        fn measure(&self, ctx: &Context) -> f32 {
+    impl Measure<Context> for CpuUsage {
+        type Output = f32;
+
+        fn measure(&self, ctx: &Context) -> Self::Output {
             ctx.cpu_usage
         }
     }
@@ -143,16 +160,24 @@ mod f32_tests {
     }
 
     impl Map01F32 for LowerIsBetter {
-        fn map(&self, value: f32) -> f32 {
-            (1.0 - value / self.limit).clamp(0.0, 1.0)
+        type Input = f32;
+
+        fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
+            let value = (1.0 - value / self.limit).clamp(0.0, 1.0);
+            // Safety: the value is clamped to the `[0, 1]` range above.
+            unsafe { value.witness().by_unchecked::<V01>() }
         }
     }
 
     struct Identity;
 
     impl Map01F32 for Identity {
-        fn map(&self, value: f32) -> f32 {
-            value.clamp(0.0, 1.0)
+        type Input = f32;
+
+        fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
+            let value = value.clamp(0.0, 1.0);
+            // Safety: the value is clamped to the `[0, 1]` range above.
+            unsafe { value.witness().by_unchecked::<V01>() }
         }
     }
 
