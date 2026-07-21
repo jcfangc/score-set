@@ -1,4 +1,4 @@
-use crate::traits::{EvalF32, EvalF64, Map01F32, Map01F64, MeasureF32, MeasureF64};
+use crate::traits::{EvalF32, EvalF64, Map01F32, Map01F64, Measure};
 
 /// A weighted `f64` metric built from a measure and a normalization map.
 pub struct Metric64<M, G> {
@@ -21,12 +21,12 @@ impl<M, G> Metric64<M, G> {
 impl<Ctx, M, G> EvalF64<Ctx> for Metric64<M, G>
 where
     Ctx: ?Sized,
-    M: MeasureF64<Ctx>,
-    G: Map01F64,
+    M: Measure<Ctx>,
+    G: Map01F64<Input = M::Output>,
 {
     #[inline]
     fn eval(&self, ctx: &Ctx) -> f64 {
-        self.weight * self.map.map(self.measure.measure(ctx))
+        self.weight * *self.map.map(self.measure.measure(ctx))
     }
 }
 
@@ -51,11 +51,11 @@ impl<M, G> Metric32<M, G> {
 impl<Ctx, M, G> EvalF32<Ctx> for Metric32<M, G>
 where
     Ctx: ?Sized,
-    M: MeasureF32<Ctx>,
-    G: Map01F32,
+    M: Measure<Ctx>,
+    G: Map01F32<Input = M::Output>,
 {
     #[inline]
     fn eval(&self, ctx: &Ctx) -> f32 {
-        self.weight * self.map.map(self.measure.measure(ctx))
+        self.weight * *self.map.map(self.measure.measure(ctx))
     }
 }
