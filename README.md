@@ -1,7 +1,18 @@
 # score-set
-## License
+
+[![Crates.io](https://img.shields.io/crates/v/score-set.svg)](https://crates.io/crates/score-set)
+[![Documentation](https://docs.rs/score-set/badge.svg)](https://docs.rs/score-set)
+[![License](https://img.shields.io/crates/l/score-set.svg)](https://crates.io/crates/score-set)
+[![CI](https://github.com/jcfangc/score-set/actions/workflows/gate.yml/badge.svg)](https://github.com/jcfangc/score-set/actions/workflows/gate.yml)
+[![Coverage](https://codecov.io/gh/jcfangc/score-set/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/score-set)
+
+---
+
 `score-set` provides small, statically composed primitives for building
 weighted scoring functions.
+
+The crate supports `no_std`. Static metrics require no allocation; dynamic
+score sets use `alloc` for their boxed heterogeneous metric collection.
 
 A metric consists of:
 
