@@ -1,61 +1,25 @@
-use crate::traits::{EvalF32, EvalF64, Map01F32, Map01F64, Measure};
+use witnessed::Witnessed;
 
-/// A weighted `f64` metric built from a measure and a normalization map.
-pub struct Metric64<M, G> {
+use crate::{
+    normalized_eval::{NormalizedEval32, NormalizedEval64},
+    traits::V01,
+    weighted::{Weighted32, Weighted64},
+};
+
+/// Builds a weighted `f64` metric from a measurement and normalization map.
+pub fn metric64<M, G>(
     measure: M,
     map: G,
-    weight: f64,
+    weight: Witnessed<f64, V01>,
+) -> Weighted64<NormalizedEval64<M, G>> {
+    Weighted64::new(NormalizedEval64::new(measure, map), weight)
 }
 
-impl<M, G> Metric64<M, G> {
-    /// Creates a new `Metric64`.
-    pub fn new(measure: M, map: G, weight: f64) -> Self {
-        Self {
-            measure,
-            map,
-            weight,
-        }
-    }
-}
-
-impl<Ctx, M, G> EvalF64<Ctx> for Metric64<M, G>
-where
-    Ctx: ?Sized,
-    M: Measure<Ctx>,
-    G: Map01F64<Input = M::Output>,
-{
-    #[inline]
-    fn eval(&self, ctx: &Ctx) -> f64 {
-        self.weight * *self.map.map(self.measure.measure(ctx))
-    }
-}
-
-/// A weighted `f32` metric built from a measure and a normalization map.
-pub struct Metric32<M, G> {
+/// Builds a weighted `f32` metric from a measurement and normalization map.
+pub fn metric32<M, G>(
     measure: M,
     map: G,
-    weight: f32,
-}
-
-impl<M, G> Metric32<M, G> {
-    /// Creates a new `Metric32`.
-    pub fn new(measure: M, map: G, weight: f32) -> Self {
-        Self {
-            measure,
-            map,
-            weight,
-        }
-    }
-}
-
-impl<Ctx, M, G> EvalF32<Ctx> for Metric32<M, G>
-where
-    Ctx: ?Sized,
-    M: Measure<Ctx>,
-    G: Map01F32<Input = M::Output>,
-{
-    #[inline]
-    fn eval(&self, ctx: &Ctx) -> f32 {
-        self.weight * *self.map.map(self.measure.measure(ctx))
-    }
+    weight: Witnessed<f32, V01>,
+) -> Weighted32<NormalizedEval32<M, G>> {
+    Weighted32::new(NormalizedEval32::new(measure, map), weight)
 }

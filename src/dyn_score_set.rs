@@ -1,4 +1,5 @@
-use std::marker::PhantomData;
+use alloc::{boxed::Box, vec::Vec};
+use core::marker::PhantomData;
 
 use crate::traits::{EvalF32, EvalF64};
 
