@@ -10,3 +10,4 @@ pub mod traits;
 
 pub use dyn_score_set::{DynScoreSet32, DynScoreSet32Builder, DynScoreSet64, DynScoreSet64Builder};
 pub use metric::{Metric32, Metric64};
+pub use traits::{V01Error, prove_v01_f32, prove_v01_f64};

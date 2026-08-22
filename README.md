@@ -26,7 +26,7 @@ The measurement output and map input are connected through associated types.
 The mapper must accept exactly the value produced by the measurement.
 
 ```rust
-use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01}};
+use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01, prove_v01_f64}};
 use witnessed::{WitnessExt, Witnessed};
 
 struct Context {
@@ -53,8 +53,7 @@ impl Map01F64 for LowerIsBetter {
     fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
         let score = (1.0 - value / self.limit).clamp(0.0, 1.0);
 
-        // Safety: `score` was clamped to `[0, 1]` above.
-        unsafe { score.witness().by_unchecked::<V01>() }
+        score.witness().by(prove_v01_f64).expect("score was clamped")
     }
 }
 
@@ -67,7 +66,7 @@ assert!((score - 0.42).abs() < 1e-12);
 `Map01F32` has the same API and returns `Witnessed<f32, V01>`:
 
 ```rust
-use score_set::traits::{Map01F32, V01};
+use score_set::traits::{Map01F32, V01, prove_v01_f32};
 use witnessed::{WitnessExt, Witnessed};
 
 struct Identity;
@@ -78,8 +77,7 @@ impl Map01F32 for Identity {
     fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
         let score = value.clamp(0.0, 1.0);
 
-        // Safety: `score` was clamped to `[0, 1]` above.
-        unsafe { score.witness().by_unchecked::<V01>() }
+        score.witness().by(prove_v01_f32).expect("score was clamped")
     }
 }
 ```
