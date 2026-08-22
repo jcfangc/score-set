@@ -18,7 +18,7 @@ A metric consists of:
 
 - a `Measure<Ctx>` that extracts a raw value from a context;
 - a `Map01F32` or `Map01F64` that normalizes that value;
-- a weight applied to the normalized score.
+- a `Weighted32` or `Weighted64` wrapper that applies a witnessed weight.
 
 The normalized result is returned as `Witnessed<f32, V01>` or
 `Witnessed<f64, V01>`. This makes the `[0, 1]` boundary an explicit type-level
@@ -28,7 +28,7 @@ fact for downstream code.
 
 ```toml
 [dependencies]
-score-set = "2.1.0"
+score-set = "3.0.0"
 ```
 
 ## Quick start
@@ -37,7 +37,7 @@ The measurement output and map input are connected through associated types.
 The mapper must accept exactly the value produced by the measurement.
 
 ```rust
-use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01, prove_v01_f64}};
+use score_set::{metric64, weight64, traits::{EvalF64, Map01F64, Measure, V01, prove_v01_f64}};
 use witnessed::{WitnessExt, Witnessed};
 
 struct Context {
@@ -68,7 +68,8 @@ impl Map01F64 for LowerIsBetter {
     }
 }
 
-let metric = Metric64::new(Latency, LowerIsBetter { limit: 100.0 }, 0.7);
+let weight = weight64(0.7).unwrap();
+let metric = metric64(Latency, LowerIsBetter { limit: 100.0 }, weight);
 let score = metric.eval(&Context { latency_ms: 40.0 });
 
 assert!((score - 0.42).abs() < 1e-12);
@@ -99,18 +100,37 @@ impl Map01F32 for Identity {
 behind `EvalF32<Ctx>` or `EvalF64<Ctx>` trait objects.
 
 ```rust
-use score_set::{DynScoreSet64, Metric64};
+use score_set::{DynScoreSet64, metric64, weight64};
 
+let weight = weight64(0.7).unwrap();
 let score_set = DynScoreSet64::<Context>::builder()
-    .append(Metric64::new(Latency, LowerIsBetter { limit: 100.0 }, 0.7))
+    .append(metric64(Latency, LowerIsBetter { limit: 100.0 }, weight))
     .build();
 
 let score = score_set.eval(&Context { latency_ms: 40.0 });
 ```
 
-Use the concrete `Metric32`/`Metric64` types when the metric composition is
-known at compile time. Use a dynamic score set when the enabled metrics are
-selected at runtime.
+The `metric32` and `metric64` functions are convenience constructors for a
+`Weighted32<NormalizedEval32<...>>` or
+`Weighted64<NormalizedEval64<...>>` composition.
+
+## Weighting evaluators
+
+`Weighted32` and `Weighted64` can scale any evaluator, including user-defined
+static score sets and dynamic score sets. A weight must carry the `V01`
+witness, so an unchecked or out-of-range coefficient cannot enter the scoring
+tree. The `weight32` and `weight64` constructors validate raw coefficients and
+return a `Result`.
+
+```rust
+use score_set::{Weighted64, weight64};
+
+let weight = weight64(0.8).unwrap();
+let weighted_score_set = Weighted64::new(score_set, weight);
+```
+
+The witness guarantees each weight is in `[0, 1]`. It does not guarantee that
+several weights sum to one or that a complete score remains normalized.
 
 ## Witnesses
 
@@ -173,20 +193,18 @@ These use cases have different implementation requirements and are therefore rep
 When the metric set is known at compile time, metrics can be represented directly through generic composition:
 
 ```rust
-pub struct Metric<M, G> {
-    measure: M,
-    map: G,
-    weight: f64,
-}
+type LatencyMetric = Weighted64<NormalizedEval64<Latency, Cauchy>>;
+type CpuMetric = Weighted64<NormalizedEval64<CpuUsage, Linear>>;
+type SimilarityMetric = Weighted64<NormalizedEval64<Similarity, Sigmoid>>;
 ```
 
 A statically defined score set can contain concrete metric types:
 
 ```rust
 pub struct DefaultScoreSet {
-    latency: Metric<Latency, Cauchy>,
-    cpu: Metric<CpuUsage, Linear>,
-    similarity: Metric<Similarity, Sigmoid>,
+    latency: LatencyMetric,
+    cpu: CpuMetric,
+    similarity: SimilarityMetric,
 }
 ```
 
@@ -306,10 +324,14 @@ It is not suitable as a general-purpose library strategy.
 If the sets of measurements and mappings are closed, the library can generate one enum variant for each supported pair:
 
 ```rust
+type LatencyIdentity = Weighted64<NormalizedEval64<Latency, Identity>>;
+type LatencyCauchy = Weighted64<NormalizedEval64<Latency, Cauchy>>;
+type CpuLinear = Weighted64<NormalizedEval64<CpuUsage, Linear>>;
+
 pub enum MetricOp {
-    LatencyIdentity(Metric<Latency, Identity>),
-    LatencyCauchy(Metric<Latency, Cauchy>),
-    CpuLinear(Metric<CpuUsage, Linear>),
+    LatencyIdentity(LatencyIdentity),
+    LatencyCauchy(LatencyCauchy),
+    CpuLinear(CpuLinear),
 }
 ```
 
@@ -372,31 +394,13 @@ pub struct DynScoreSet<Ctx> {
 }
 ```
 
-Concrete metrics remain generic:
+Concrete metrics remain generic compositions:
 
 ```rust
-pub struct Metric<M, G> {
-    measure: M,
-    map: G,
-    weight: f64,
-}
-```
-
-and implement the common evaluation interface:
-
-```rust
-impl<Ctx, M, G> Eval<Ctx> for Metric<M, G>
-where
-    M: Measure<Ctx>,
-    G: Map01,
-{
-    fn eval(&self, ctx: &Ctx) -> f64 {
-        self.weight
-            * self.map.map(
-                self.measure.measure(ctx),
-            )
-    }
-}
+let metric = Weighted64::new(
+    NormalizedEval64::new(measure, map),
+    weight,
+);
 ```
 
 Runtime configuration constructs only the enabled metrics:
@@ -406,13 +410,13 @@ let mut metrics = Vec::new();
 
 if let Some(config) = proto.latency_cauchy {
     metrics.push(Box::new(
-        Metric::<Latency, Cauchy>::compile(config)?,
+        metric64(Latency, Cauchy::compile(config)?, latency_weight),
     ));
 }
 
 if let Some(config) = proto.cpu_linear {
     metrics.push(Box::new(
-        Metric::<CpuUsage, Linear>::compile(config)?,
+        metric64(CpuUsage, Linear::compile(config)?, cpu_weight),
     ));
 }
 ```
@@ -422,10 +426,11 @@ The dynamic boundary exists only between the score set and each concrete metric:
 ```text
 DynScoreSet
     -> dyn Eval
-    -> Metric<M, G>
+    -> Weighted64<NormalizedEval64<M, G>>
 ```
 
-Inside `Metric<M, G>::eval`, both the measurement type and mapping type remain concrete and monomorphized.
+Inside each composed evaluator, both the measurement type and mapping type
+remain concrete and monomorphized.
 
 The runtime cost is one indirect call per enabled metric. In exchange, the representation provides:
 
@@ -464,7 +469,7 @@ User-defined runtime configurations are represented by `DynScoreSet`.
 
 ```text
 custom configuration
-    -> concrete Metric<M, G> values
+    -> concrete Weighted64<NormalizedEval64<M, G>> values
     -> Box<dyn Eval<Ctx>>
     -> dynamic score set
 ```
@@ -534,7 +539,8 @@ The library does not require applications to use separate static and dynamic exe
 
 It provides the building blocks needed for both forms of composition:
 
-* concrete generic metrics such as `Metric<M, G>`;
+* concrete generic evaluators such as
+  `Weighted64<NormalizedEval64<M, G>>`;
 * a common `Eval<Ctx>` interface;
 * a dynamically composed score set for runtime-defined configurations.
 
@@ -546,9 +552,9 @@ When an application has a predefined metric set, it may define a concrete score-
 
 ```rust
 pub struct DefaultScoreSet {
-    latency: Metric<Latency, Cauchy>,
-    cpu: Metric<CpuUsage, Linear>,
-    similarity: Metric<Similarity, Sigmoid>,
+    latency: Weighted64<NormalizedEval64<Latency, Cauchy>>,
+    cpu: Weighted64<NormalizedEval64<CpuUsage, Linear>>,
+    similarity: Weighted64<NormalizedEval64<Similarity, Sigmoid>>,
 }
 ```
 
@@ -575,7 +581,7 @@ When a metric set is selected from runtime data, the application may construct a
 
 ```text
 runtime configuration
-    -> concrete Metric<M, G> values
+    -> concrete Weighted64<NormalizedEval64<M, G>> values
     -> Box<dyn Eval<Ctx>>
     -> DynScoreSet
 ```
@@ -587,10 +593,11 @@ The dynamic boundary is limited to the collection of heterogeneous metrics:
 ```text
 DynScoreSet
     -> dyn Eval<Ctx>
-    -> Metric<M, G>
+    -> Weighted64<NormalizedEval64<M, G>>
 ```
 
-Inside each concrete `Metric<M, G>`, the measurement and mapping types remain statically known.
+Inside each concrete composed evaluator, the measurement and mapping types
+remain statically known.
 
 ### Optional application-level specialization
 
