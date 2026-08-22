@@ -1,8 +1,9 @@
 mod support;
 
 use score_set::{
-    DynScoreSet32, DynScoreSet64, Metric32, Metric64,
+    DynScoreSet32, DynScoreSet64, metric32, metric64,
     traits::{EvalF32, EvalF64},
+    weight32, weight64,
 };
 use support::{
     Context32, Context64, CpuUsage32, CpuUsage64, Identity32, Identity64, Latency32, Latency64,
@@ -12,12 +13,12 @@ use support::{
 #[test]
 fn f64_dyn_score_set_sums_heterogeneous_metrics() {
     let score_set = DynScoreSet64::<Context64>::builder()
-        .append(Metric64::new(
+        .append(metric64(
             Latency64,
             LowerIsBetter64 { limit: 100.0 },
-            0.7,
+            weight64(0.7).unwrap(),
         ))
-        .append(Metric64::new(CpuUsage64, Identity64, 0.3))
+        .append(metric64(CpuUsage64, Identity64, weight64(0.3).unwrap()))
         .build();
 
     let cases = [
@@ -56,12 +57,12 @@ fn f64_dyn_score_set_sums_heterogeneous_metrics() {
 #[test]
 fn f32_dyn_score_set_sums_heterogeneous_metrics() {
     let score_set = DynScoreSet32::<Context32>::builder()
-        .append(Metric32::new(
+        .append(metric32(
             Latency32,
             LowerIsBetter32 { limit: 100.0 },
-            0.7,
+            weight32(0.7).unwrap(),
         ))
-        .append(Metric32::new(CpuUsage32, Identity32, 0.3))
+        .append(metric32(CpuUsage32, Identity32, weight32(0.3).unwrap()))
         .build();
 
     let cases = [
