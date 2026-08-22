@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use witnessed::Witnessed;
 
 /// Witness attached to values known to be valid for the normalized `[0, 1]`
@@ -79,8 +81,30 @@ pub trait EvalF64<Ctx: ?Sized>: Send + Sync {
     fn eval(&self, ctx: &Ctx) -> f64;
 }
 
+impl<Ctx, E> EvalF64<Ctx> for Box<E>
+where
+    Ctx: ?Sized,
+    E: EvalF64<Ctx> + ?Sized,
+{
+    #[inline]
+    fn eval(&self, ctx: &Ctx) -> f64 {
+        self.as_ref().eval(ctx)
+    }
+}
+
 /// Evaluates a context into an `f32` score.
 pub trait EvalF32<Ctx: ?Sized>: Send + Sync {
     /// Computes a score from `ctx`.
     fn eval(&self, ctx: &Ctx) -> f32;
+}
+
+impl<Ctx, E> EvalF32<Ctx> for Box<E>
+where
+    Ctx: ?Sized,
+    E: EvalF32<Ctx> + ?Sized,
+{
+    #[inline]
+    fn eval(&self, ctx: &Ctx) -> f32 {
+        self.as_ref().eval(ctx)
+    }
 }
