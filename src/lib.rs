@@ -4,6 +4,10 @@
 //! - `Metric32` / `Metric64` for combining a measure, a normalization map, and a weight.
 //! - `DynScoreSet32` / `DynScoreSet64` for storing heterogeneous metrics behind trait objects.
 
+#![no_std]
+
+extern crate alloc;
+
 mod dyn_score_set;
 mod metric;
 pub mod traits;
