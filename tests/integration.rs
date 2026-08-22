@@ -1,6 +1,6 @@
 use score_set::{
     DynScoreSet32, DynScoreSet64, Metric32, Metric64,
-    traits::{EvalF32, EvalF64, Map01F32, Map01F64, Measure, V01},
+    traits::{EvalF32, EvalF64, Map01F32, Map01F64, Measure, V01, prove_v01_f32, prove_v01_f64},
 };
 use witnessed::{WitnessExt, Witnessed};
 
@@ -42,8 +42,10 @@ mod f64_tests {
 
         fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
             let value = (1.0 - value / self.limit).clamp(0.0, 1.0);
-            // Safety: the value is clamped to the `[0, 1]` range above.
-            unsafe { value.witness().by_unchecked::<V01>() }
+            value
+                .witness()
+                .by(prove_v01_f64)
+                .expect("value was clamped")
         }
     }
 
@@ -54,8 +56,10 @@ mod f64_tests {
 
         fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
             let value = value.clamp(0.0, 1.0);
-            // Safety: the value is clamped to the `[0, 1]` range above.
-            unsafe { value.witness().by_unchecked::<V01>() }
+            value
+                .witness()
+                .by(prove_v01_f64)
+                .expect("value was clamped")
         }
     }
 
@@ -164,8 +168,10 @@ mod f32_tests {
 
         fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
             let value = (1.0 - value / self.limit).clamp(0.0, 1.0);
-            // Safety: the value is clamped to the `[0, 1]` range above.
-            unsafe { value.witness().by_unchecked::<V01>() }
+            value
+                .witness()
+                .by(prove_v01_f32)
+                .expect("value was clamped")
         }
     }
 
@@ -176,8 +182,10 @@ mod f32_tests {
 
         fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
             let value = value.clamp(0.0, 1.0);
-            // Safety: the value is clamped to the `[0, 1]` range above.
-            unsafe { value.witness().by_unchecked::<V01>() }
+            value
+                .witness()
+                .by(prove_v01_f32)
+                .expect("value was clamped")
         }
     }
 
@@ -246,4 +254,13 @@ mod f32_tests {
 
         assert_eq!(score_set.eval(&ctx), 0.0);
     }
+}
+
+#[test]
+fn prove_v01_accepts_both_float_types_and_rejects_invalid_values() {
+    assert!(0.0_f32.witness().by(prove_v01_f32).is_ok());
+    assert!(1.0_f64.witness().by(prove_v01_f64).is_ok());
+    assert!((-0.1_f32).witness().by(prove_v01_f32).is_err());
+    assert!(1.1_f64.witness().by(prove_v01_f64).is_err());
+    assert!(f32::NAN.witness().by(prove_v01_f32).is_err());
 }

@@ -17,7 +17,7 @@ fact for downstream code.
 
 ```toml
 [dependencies]
-score-set = "2.0.0"
+score-set = "2.1.0"
 ```
 
 ## Quick start
@@ -26,7 +26,7 @@ The measurement output and map input are connected through associated types.
 The mapper must accept exactly the value produced by the measurement.
 
 ```rust
-use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01}};
+use score_set::{Metric64, traits::{EvalF64, Map01F64, Measure, V01, prove_v01_f64}};
 use witnessed::{WitnessExt, Witnessed};
 
 struct Context {
@@ -53,8 +53,7 @@ impl Map01F64 for LowerIsBetter {
     fn map(&self, value: Self::Input) -> Witnessed<f64, V01> {
         let score = (1.0 - value / self.limit).clamp(0.0, 1.0);
 
-        // Safety: `score` was clamped to `[0, 1]` above.
-        unsafe { score.witness().by_unchecked::<V01>() }
+        score.witness().by(prove_v01_f64).expect("score was clamped")
     }
 }
 
@@ -67,7 +66,7 @@ assert!((score - 0.42).abs() < 1e-12);
 `Map01F32` has the same API and returns `Witnessed<f32, V01>`:
 
 ```rust
-use score_set::traits::{Map01F32, V01};
+use score_set::traits::{Map01F32, V01, prove_v01_f32};
 use witnessed::{WitnessExt, Witnessed};
 
 struct Identity;
@@ -78,8 +77,7 @@ impl Map01F32 for Identity {
     fn map(&self, value: Self::Input) -> Witnessed<f32, V01> {
         let score = value.clamp(0.0, 1.0);
 
-        // Safety: `score` was clamped to `[0, 1]` above.
-        unsafe { score.witness().by_unchecked::<V01>() }
+        score.witness().by(prove_v01_f32).expect("score was clamped")
     }
 }
 ```
@@ -130,32 +128,27 @@ When a result is derived from already-witnessed values and rechecking is
 unnecessary, `by_unchecked` may be used at an explicitly audited unsafe
 boundary. The caller must document why the invariant is preserved.
 
-+# Design Rationale
+## Design Rationale
 
 `score-set` models a score as a weighted composition of a measurement and a mapping function.
 
-For a context $x$, a single metric is defined as:
+For a context `x`, a single metric is defined as:
 
-$$
-\operatorname{metric}(x)
-=
-w \cdot g(m(x))
-$$
+```text
+metric(x) = w · g(m(x))
+```
 
 where:
 
-* $m$ is a measurement;
-* $g$ maps the measurement result into a normalized score;
-* $w$ is the metric weight.
+* `m` is a measurement;
+* `g` maps the measurement result into a normalized score;
+* `w` is the metric weight.
 
 A complete score set evaluates multiple metrics and sums their contributions:
 
-$$
-\operatorname{score}(x)
-=
-\sum_{i=1}^{n}
-w_i g_i(m_i(x))
-$$
+```text
+score(x) = Σ(i=1..n) w_i · g_i(m_i(x))
+```
 
 The library needs to support two different use cases:
 
@@ -248,15 +241,14 @@ These are different concrete Rust types.
 
 Return-position `impl Trait` does not unify them. It hides one concrete type selected at compile time; it does not represent several types selected by runtime data.
 
-In general, the following three properties cannot be obtained simultaneously in ordinary ahead-of-time Rust:
+In general, the following three properties cannot be obtained simultaneously
+in ordinary ahead-of-time Rust:
 
-$$
-\text{runtime-selected structure}
-+
-\text{one concrete static type}
-+
-\text{no enumeration of all structures}
-$$
+```text
+runtime-selected structure
++ one concrete static type
++ no enumeration of all structures
+```
 
 A runtime-configurable implementation therefore requires a common representation.
 
@@ -282,11 +274,8 @@ It is less suitable for sparse runtime configurations.
 
 Every possible runtime subset can be represented as a separate enum variant.
 
-For $N$ independently optional metrics, the number of possible subsets is:
-
-$$
-2^N
-$$
+For `N` independently optional metrics, the number of possible subsets is
+`2^N`.
 
 For example:
 
@@ -323,13 +312,9 @@ pub struct ScoreSet {
 
 Each metric evaluation performs one enum dispatch, after which the concrete measurement and mapping types are known.
 
-This avoids trait objects and preserves static dispatch inside each enum branch. However, the generated representation grows with the Cartesian product:
-
-$$
-|\mathcal M| \times |\mathcal G|
-$$
-
-where $\mathcal M$ is the measurement set and $\mathcal G$ is the mapping set.
+This avoids trait objects and preserves static dispatch inside each enum branch.
+However, the generated representation grows with the Cartesian product
+`|M| × |G|`, where `M` is the measurement set and `G` is the mapping set.
 
 Adding a new measurement or mapping expands the generated enum and its conversion logic.
 
@@ -523,17 +508,10 @@ The selected design does not attempt to force compile-time and runtime compositi
 
 Instead, it uses the representation appropriate to each case:
 
-$$
-\text{predefined configuration}
-\longrightarrow
-\text{static composition}
-$$
-
-$$
-\text{runtime configuration}
-\longrightarrow
-\text{dynamic composition}
-$$
+```text
+predefined configuration -> static composition
+runtime configuration    -> dynamic composition
+```
 
 Dynamic dispatch is limited to the boundary where runtime heterogeneity must be represented. The internal implementation of each concrete metric remains generic and statically typed.
 
@@ -651,17 +629,10 @@ This split is an application optimization, not a requirement of `score-set`.
 
 Compile-time and runtime composition have different representation requirements:
 
-$$
-\text{compile-time-known composition}
-\longrightarrow
-\text{concrete generic type}
-$$
-
-$$
-\text{runtime-selected composition}
-\longrightarrow
-\text{type-erased heterogeneous collection}
-$$
+```text
+compile-time-known composition -> concrete generic type
+runtime-selected composition   -> type-erased heterogeneous collection
+```
 
 The library supports both representations without requiring applications to expose both.
 
