@@ -92,6 +92,36 @@ where
     }
 }
 
+/// Evaluates a context into an `f64` score in two stages.
+///
+/// A caller can inspect the contribution returned by
+/// [`PartialEvalF64::partial`] before deciding whether to compute
+/// [`PartialEvalF64::residual`]. When both stages are evaluated, the complete
+/// score is their sum.
+pub trait PartialEvalF64<Ctx: ?Sized>: Send + Sync {
+    /// Computes the initial score contribution.
+    fn partial(&self, ctx: &Ctx) -> f64;
+
+    /// Computes the remaining score contribution.
+    fn residual(&self, ctx: &Ctx) -> f64;
+}
+
+impl<Ctx, E> PartialEvalF64<Ctx> for Box<E>
+where
+    Ctx: ?Sized,
+    E: PartialEvalF64<Ctx> + ?Sized,
+{
+    #[inline]
+    fn partial(&self, ctx: &Ctx) -> f64 {
+        self.as_ref().partial(ctx)
+    }
+
+    #[inline]
+    fn residual(&self, ctx: &Ctx) -> f64 {
+        self.as_ref().residual(ctx)
+    }
+}
+
 /// Evaluates a context into an `f32` score.
 pub trait EvalF32<Ctx: ?Sized>: Send + Sync {
     /// Computes a score from `ctx`.
@@ -106,5 +136,35 @@ where
     #[inline]
     fn eval(&self, ctx: &Ctx) -> f32 {
         self.as_ref().eval(ctx)
+    }
+}
+
+/// Evaluates a context into an `f32` score in two stages.
+///
+/// A caller can inspect the contribution returned by
+/// [`PartialEvalF32::partial`] before deciding whether to compute
+/// [`PartialEvalF32::residual`]. When both stages are evaluated, the complete
+/// score is their sum.
+pub trait PartialEvalF32<Ctx: ?Sized>: Send + Sync {
+    /// Computes the initial score contribution.
+    fn partial(&self, ctx: &Ctx) -> f32;
+
+    /// Computes the remaining score contribution.
+    fn residual(&self, ctx: &Ctx) -> f32;
+}
+
+impl<Ctx, E> PartialEvalF32<Ctx> for Box<E>
+where
+    Ctx: ?Sized,
+    E: PartialEvalF32<Ctx> + ?Sized,
+{
+    #[inline]
+    fn partial(&self, ctx: &Ctx) -> f32 {
+        self.as_ref().partial(ctx)
+    }
+
+    #[inline]
+    fn residual(&self, ctx: &Ctx) -> f32 {
+        self.as_ref().residual(ctx)
     }
 }
